@@ -1,1 +1,525 @@
-pbpaste > ~/Desktop/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRE Vocab Log</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e4e1d8;--red:#d64545;--redbg:#fdecec;--green:#2e9e5b;--greenbg:#e8f6ee}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header,main{max-width:980px;margin:auto;padding:0 20px}
+header{padding-top:22px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+h1{margin:0;font-size:24px}
+.sync{font-size:13px;color:var(--muted)}
+.stats{display:flex;gap:18px;color:var(--muted);font-size:14px;flex-wrap:wrap;margin-top:8px}
+.stats b{color:var(--ink)}
+nav{display:flex;gap:4px;margin-top:16px;border-bottom:1px solid var(--line)}
+nav button{background:none;border:0;padding:10px 14px;font-size:15px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+nav button.active{color:var(--ink);border-color:var(--ink);font-weight:600}
+main{padding-top:20px;padding-bottom:60px}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+form.add{display:grid;grid-template-columns:1fr 2fr;gap:10px}
+form.add .full{grid-column:1/-1}
+@media(max-width:640px){form.add{grid-template-columns:1fr}}
+input,textarea,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
+textarea{resize:vertical;min-height:42px}
+.btn{padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;font:inherit;color:var(--ink);white-space:nowrap}
+.btn:hover{filter:brightness(.96)}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.red{background:var(--red);color:#fff;border-color:var(--red)}
+.btn.green{background:var(--green);color:#fff;border-color:var(--green)}
+.btn.small{padding:6px 10px;font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.wordrow{display:flex;gap:8px}
+#lookupMsg{font-size:13px;color:var(--muted);min-height:16px}
+.toolbar{display:flex;gap:8px;margin:18px 0 6px;flex-wrap:wrap}
+.toolbar input{flex:1;min-width:160px}
+.toolbar select{width:auto}
+.day{margin-top:18px}
+.day h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
+.word{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-left:5px solid var(--red);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.word.green{border-left-color:var(--green)}
+.word .body{flex:1;min-width:0}
+.word .w{font-weight:700;font-size:17px}
+.word .m{margin-top:2px}
+.word .ex{color:var(--muted);font-style:italic;font-size:14px;margin-top:4px}
+.word .syn{font-size:13px;margin-top:4px}
+.word .meta{font-size:12px;color:var(--muted);margin-top:6px}
+.side{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.pill{cursor:pointer;border:0;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:600}
+.pill.red{background:var(--redbg);color:var(--red)}
+.pill.green{background:var(--greenbg);color:var(--green)}
+.link{background:none;border:0;cursor:pointer;color:var(--muted);font-size:13px;padding:0}
+.link:hover{color:var(--ink);text-decoration:underline}
+.empty{color:var(--muted);text-align:center;padding:30px 0}
+.flash{text-align:center;padding:36px 20px;margin-top:16px}
+.prog{color:var(--muted);font-size:13px}
+.fw{font-size:38px;font-weight:700;margin:18px 0}
+#ans{margin:0 auto 20px;max-width:560px}
+#ans .m{font-size:18px}
+.actions{display:flex;gap:10px;justify-content:center}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:12px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+th{background:#faf9f5;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+td.num{font-weight:700;color:var(--red)}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--red)}
+.dot.green{background:var(--green)}
+.table-wrap{overflow-x:auto}
+#importFile{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>📚 GRE Vocab Log</h1>
+    <div class="row">
+      <span class="sync" id="syncStatus"></span>
+      <button class="btn small primary" id="authBtn" hidden>Sign in with Google</button>
+      <button class="btn small" id="exportBtn">Export backup</button>
+      <label class="btn small" for="importFile">Import</label>
+      <input type="file" id="importFile" accept=".json">
+    </div>
+  </div>
+  <div class="stats" id="stats"></div>
+  <nav>
+    <button class="active" data-tab="words">Words</button>
+    <button data-tab="revise">Revise</button>
+    <button data-tab="errors">Error Log</button>
+  </nav>
+</header>
+
+<main>
+  <!-- WORDS -->
+  <section class="panel active" id="words">
+    <form class="add card" id="addForm" autocomplete="off">
+      <div class="wordrow">
+        <input name="word" placeholder="Word (e.g. laconic)" required>
+        <button class="btn" type="button" id="lookupBtn" title="Fill meaning, example and synonyms from the dictionary">🔍 Look up</button>
+      </div>
+      <input name="meaning" placeholder="Meaning (auto-fills when you type a word)">
+      <textarea class="full" name="example" placeholder="Example sentence (optional)"></textarea>
+      <input class="full" name="synonyms" placeholder="Synonyms / related words (optional)">
+      <div class="full" id="lookupMsg"></div>
+      <div class="full row">
+        <button class="btn primary" id="submitBtn" type="submit">Add word</button>
+        <button class="btn" id="cancelEdit" type="button" hidden>Cancel edit</button>
+      </div>
+    </form>
+    <div class="toolbar">
+      <input id="search" placeholder="Search words, meanings, synonyms…">
+      <select id="filter">
+        <option value="all">All</option>
+        <option value="red">🔴 Red only</option>
+        <option value="green">🟢 Green only</option>
+      </select>
+      <select id="sort">
+        <option value="date">By day added</option>
+        <option value="az">A → Z</option>
+        <option value="misses">Most missed</option>
+      </select>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <!-- REVISE -->
+  <section class="panel" id="revise">
+    <div class="card row">
+      <span>Revise:</span>
+      <select id="revMode" style="width:auto">
+        <option value="due">Due (red + green not seen in 3+ days)</option>
+        <option value="red">Red words only</option>
+        <option value="today">Words added today</option>
+        <option value="errors">Error-log words</option>
+        <option value="all">All words</option>
+      </select>
+      <button class="btn primary" id="startRev">Start</button>
+    </div>
+    <div id="revBox"><p class="empty">Pick a set and hit Start. Shortcuts: Space = reveal, 1 = missed, 2 = knew it.</p></div>
+  </section>
+
+  <!-- ERROR LOG -->
+  <section class="panel" id="errors">
+    <div class="row" style="justify-content:space-between">
+      <p style="margin:0;color:var(--muted)">Every word you've missed in revision, worst first.</p>
+      <button class="btn small primary" id="reviseErrors">Revise these</button>
+    </div>
+    <div class="table-wrap" id="errorTable"></div>
+  </section>
+</main>
+
+<script>
+/* ---------- Firebase config (your project) ---------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyB-xd7UvJTfHr8DM8G6PMbkuey3Jip5iIU",
+  authDomain: "gre-vocab-a8fe9.firebaseapp.com",
+  projectId: "gre-vocab-a8fe9",
+  storageBucket: "gre-vocab-a8fe9.firebasestorage.app",
+  messagingSenderId: "539965852343",
+  appId: "1:539965852343:web:23bf4e4ff0a28f6f28db32"
+};
+const FB_URL = 'https://www.gstatic.com/firebasejs/12.9.0/';
+
+const KEY = 'greVocab.v1';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+const dayDiff = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);
+const sortWords = list => list.sort((a, b) =>
+  (b.added || '').localeCompare(a.added || '') || (b.ts || 0) - (a.ts || 0) || String(b.id).localeCompare(String(a.id)));
+
+let words = sortWords(load());
+let editingId = null;
+
+function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } }
+function persist(){ try { localStorage.setItem(KEY, JSON.stringify(words)); } catch(e){} }
+
+/* commit = save on this device + push changes to the cloud (if signed in) */
+function commit(changed = [], removed = []){
+  persist(); render();
+  pushCloud(changed, removed).catch(e => setSync("⚠️ Couldn't sync: " + (e.code || e.message)));
+}
+
+function fmtDate(d){
+  const diff = dayDiff(today(), d);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  return new Date(d + 'T00:00').toLocaleDateString(undefined, {weekday:'short', day:'numeric', month:'short', year:'numeric'});
+}
+const lastReviewed = w => (w.log && w.log.length) ? w.log[w.log.length - 1].d : null;
+
+/* ---------- Cloud sync (Firebase) ---------- */
+let fb = null, user = null, unsub = null;
+function setSync(t){ $('#syncStatus').textContent = t; }
+
+async function initSync(){
+  if (location.protocol === 'file:') { setSync('💾 Saved on this device — open your web link to sign in & sync'); return; }
+  setSync('Connecting…');
+  try {
+    const [appM, authM, fsM] = await Promise.all([
+      import(FB_URL + 'firebase-app.js'),
+      import(FB_URL + 'firebase-auth.js'),
+      import(FB_URL + 'firebase-firestore.js')
+    ]);
+    const app = appM.initializeApp(firebaseConfig);
+    fb = { auth: authM.getAuth(app), db: fsM.getFirestore(app), A: authM, F: fsM };
+    authM.onAuthStateChanged(fb.auth, u => {
+      user = u;
+      if (unsub) { unsub(); unsub = null; }
+      updateAuthUI();
+      if (u) startListening();
+    });
+  } catch (e) {
+    console.error(e);
+    setSync('⚠️ Sync unavailable — saving on this device only');
+  }
+}
+
+function updateAuthUI(){
+  const btn = $('#authBtn'); btn.hidden = false;
+  if (user) { btn.textContent = 'Sign out'; btn.classList.remove('primary'); setSync('☁️ Syncing… ' + (user.email || '')); }
+  else { btn.textContent = 'Sign in with Google'; btn.classList.add('primary'); setSync('💾 This device only — sign in to sync'); }
+}
+
+function startListening(){
+  const { F, db } = fb;
+  let first = true;
+  const col = F.collection(db, 'users', user.uid, 'words');
+  unsub = F.onSnapshot(col, snap => {
+    const cloud = snap.docs.map(d => d.data());
+    if (first) {
+      first = false;
+      // First sign-in on this account: upload words already saved on this device
+      if (!cloud.length && words.length) {
+        setSync('☁️ Uploading ' + words.length + ' words…');
+        pushCloud(words, []).catch(e => setSync("⚠️ Couldn't upload: " + (e.code || e.message)));
+        return;
+      }
+    }
+    words = sortWords(cloud);
+    persist(); render();
+    setSync('☁️ Synced · ' + (user.email || ''));
+  }, err => setSync('⚠️ Sync error: ' + err.code + ' (check Firestore setup)'));
+}
+
+async function pushCloud(changed, removed){
+  if (!fb || !user) return;
+  const { F, db } = fb;
+  const ops = [...changed.map(w => ['set', w]), ...removed.map(id => ['del', id])];
+  for (let i = 0; i < ops.length; i += 450) {
+    const batch = F.writeBatch(db);
+    ops.slice(i, i + 450).forEach(([type, x]) => {
+      if (type === 'set') batch.set(F.doc(db, 'users', user.uid, 'words', String(x.id)), JSON.parse(JSON.stringify(x)));
+      else batch.delete(F.doc(db, 'users', user.uid, 'words', String(x)));
+    });
+    await batch.commit();
+  }
+}
+
+$('#authBtn').onclick = async () => {
+  if (!fb) return;
+  const { A, auth } = fb;
+  if (user) {
+    if (confirm('Sign out? Your words stay safe in your account.')) A.signOut(auth);
+    return;
+  }
+  try {
+    await A.signInWithPopup(auth, new A.GoogleAuthProvider());
+  } catch (e) {
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
+    if (e.code === 'auth/popup-blocked') {
+      try { await A.signInWithRedirect(auth, new A.GoogleAuthProvider()); } catch (e2) { alert('Sign-in failed: ' + e2.code); }
+      return;
+    }
+    alert('Sign-in failed: ' + e.code + (e.code === 'auth/unauthorized-domain' ? '\n\nAdd minikaintura-dev.github.io under Firebase → Authentication → Settings → Authorized domains.' : ''));
+  }
+};
+
+/* ---------- Tabs ---------- */
+function showTab(id){
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === id));
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+/* ---------- Dictionary lookup ---------- */
+async function lookup(force){
+  const f = $('#addForm'), word = f.word.value.trim();
+  const msg = $('#lookupMsg');
+  if (!word) { msg.textContent = 'Type a word first.'; return; }
+  msg.textContent = 'Looking up "' + word + '"…';
+  try {
+    const res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word.toLowerCase()));
+    if (f.word.value.trim() !== word) return; // word changed while we were waiting
+    if (!res.ok) { msg.textContent = 'No dictionary entry found for "' + word + '" — type the meaning yourself.'; return; }
+    const data = await res.json();
+    const meanings = data.flatMap(e => e.meanings || []);
+    const defs = meanings.flatMap(m => (m.definitions || []).map(d => ({ ...d, pos: m.partOfSpeech })));
+    if (!defs.length) { msg.textContent = 'No meaning found — type it yourself.'; return; }
+    const meaning = defs.slice(0, 2).map(d => (d.pos ? '(' + d.pos + ') ' : '') + d.definition).join('; ');
+    const example = (defs.find(d => d.example) || {}).example || '';
+    const syns = [...new Set([...meanings.flatMap(m => m.synonyms || []), ...defs.flatMap(d => d.synonyms || [])])].slice(0, 6).join(', ');
+    if (force || !f.meaning.value.trim()) f.meaning.value = meaning;
+    if (example && (force || !f.example.value.trim())) f.example.value = example;
+    if (syns && (force || !f.synonyms.value.trim())) f.synonyms.value = syns;
+    msg.textContent = '✓ Filled from dictionary — edit it if you want the GRE-specific sense.';
+  } catch (e) {
+    msg.textContent = "Couldn't reach the dictionary — check your internet, or type the meaning yourself.";
+  }
+}
+$('#lookupBtn').onclick = () => lookup(true);
+$('#addForm').word.addEventListener('blur', () => {
+  const f = $('#addForm');
+  if (!editingId && f.word.value.trim() && !f.meaning.value.trim()) lookup(false);
+});
+
+/* ---------- Add / edit ---------- */
+$('#addForm').onsubmit = async e => {
+  e.preventDefault();
+  const f = e.target, word = f.word.value.trim();
+  if (!word) return;
+  if (!editingId && !f.meaning.value.trim()) await lookup(false);
+  const data = { word, meaning: f.meaning.value.trim(), example: f.example.value.trim(), synonyms: f.synonyms.value.trim() };
+  if (editingId) {
+    const w = words.find(x => x.id === editingId);
+    stopEditing();
+    if (w) { Object.assign(w, data); commit([w]); }
+  } else {
+    if (words.some(w => w.word.toLowerCase() === word.toLowerCase()) && !confirm(`"${word}" is already in your list. Add it again?`)) return;
+    const w = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...data,
+      status: 'red', added: today(), ts: Date.now(), misses: 0, log: [], note: '' };
+    words.unshift(w);
+    f.reset(); $('#lookupMsg').textContent = ''; f.word.focus();
+    commit([w]);
+  }
+};
+function stopEditing(){ editingId = null; $('#submitBtn').textContent = 'Add word'; $('#cancelEdit').hidden = true; $('#addForm').reset(); $('#lookupMsg').textContent = ''; }
+$('#cancelEdit').onclick = stopEditing;
+
+/* ---------- Word list ---------- */
+['search','filter','sort'].forEach(id => $('#' + id).addEventListener('input', renderList));
+
+function wordHTML(w){
+  return `<div class="word ${w.status}" data-id="${esc(w.id)}">
+    <div class="body">
+      <div class="w">${esc(w.word)}</div>
+      ${w.meaning ? `<div class="m">${esc(w.meaning)}</div>` : ''}
+      ${w.example ? `<div class="ex">“${esc(w.example)}”</div>` : ''}
+      ${w.synonyms ? `<div class="syn"><b>Syn:</b> ${esc(w.synonyms)}</div>` : ''}
+      <div class="meta">Added ${fmtDate(w.added)} · Reviewed ${(w.log || []).length}× · Missed ${w.misses || 0}×</div>
+    </div>
+    <div class="side">
+      <button class="pill ${w.status}" data-act="toggle" title="Click to flip status">${w.status === 'red' ? '● Red' : '● Green'}</button>
+      <div class="row"><button class="link" data-act="edit">Edit</button><button class="link" data-act="del">Delete</button></div>
+    </div>
+  </div>`;
+}
+
+function renderList(){
+  const q = $('#search').value.toLowerCase().trim(), fs = $('#filter').value, sort = $('#sort').value;
+  let list = words.filter(w => (fs === 'all' || w.status === fs) &&
+    `${w.word} ${w.meaning} ${w.synonyms}`.toLowerCase().includes(q));
+  const el = $('#list');
+  if (!list.length){ el.innerHTML = `<p class="empty">${words.length ? 'No matches.' : 'No words yet — add your first one above.'}</p>`; return; }
+  if (sort === 'az') list.sort((a, b) => a.word.localeCompare(b.word));
+  if (sort === 'misses') list.sort((a, b) => (b.misses || 0) - (a.misses || 0));
+  if (sort === 'date'){
+    const groups = {};
+    list.forEach(w => (groups[w.added] ||= []).push(w));
+    el.innerHTML = Object.keys(groups).sort().reverse().map(d => {
+      const g = groups[d], reds = g.filter(w => w.status === 'red').length;
+      return `<div class="day"><h3>${fmtDate(d)} · ${g.length} word${g.length > 1 ? 's' : ''} · ${reds} red</h3>${g.map(wordHTML).join('')}</div>`;
+    }).join('');
+  } else el.innerHTML = list.map(wordHTML).join('');
+}
+
+$('#list').onclick = e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const w = words.find(x => String(x.id) === b.closest('.word').dataset.id);
+  if (!w) return;
+  const act = b.dataset.act;
+  if (act === 'toggle'){ w.status = w.status === 'red' ? 'green' : 'red'; commit([w]); }
+  if (act === 'del' && confirm(`Delete "${w.word}"?`)){ words = words.filter(x => x !== w); commit([], [w.id]); }
+  if (act === 'edit'){
+    const f = $('#addForm');
+    f.word.value = w.word; f.meaning.value = w.meaning || ''; f.example.value = w.example || ''; f.synonyms.value = w.synonyms || '';
+    editingId = w.id; $('#submitBtn').textContent = 'Save changes'; $('#cancelEdit').hidden = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' }); f.word.focus();
+  }
+};
+
+/* ---------- Revision ---------- */
+let queue = [], qi = 0, revealed = false, sess = { ok: 0, miss: 0 };
+
+function startRevision(){
+  const mode = $('#revMode').value, t = today();
+  queue = words.filter(w =>
+    mode === 'all' ||
+    (mode === 'red' && w.status === 'red') ||
+    (mode === 'today' && w.added === t) ||
+    (mode === 'errors' && w.misses > 0) ||
+    (mode === 'due' && (w.status === 'red' || !lastReviewed(w) || dayDiff(t, lastReviewed(w)) >= 3)));
+  for (let i = queue.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [queue[i], queue[j]] = [queue[j], queue[i]]; }
+  qi = 0; sess = { ok: 0, miss: 0 }; showCard();
+}
+$('#startRev').onclick = startRevision;
+
+function showCard(){
+  const box = $('#revBox');
+  if (!queue.length){ box.innerHTML = '<p class="empty">Nothing in this set right now 🎉</p>'; return; }
+  if (qi >= queue.length){
+    box.innerHTML = `<div class="card flash"><div class="fw">Done!</div>
+      <p>✅ ${sess.ok} knew · ❌ ${sess.miss} missed</p>
+      <button class="btn primary" id="again">Go again</button></div>`;
+    $('#again').onclick = startRevision; return;
+  }
+  const w = queue[qi]; revealed = false;
+  box.innerHTML = `<div class="card flash">
+    <div class="prog">${qi + 1} / ${queue.length} · currently <span class="pill ${w.status}">${w.status}</span></div>
+    <div class="fw">${esc(w.word)}</div>
+    <div id="ans" hidden>
+      <div class="m">${esc(w.meaning) || '<i>No meaning added</i>'}</div>
+      ${w.example ? `<p class="ex" style="color:var(--muted);font-style:italic">“${esc(w.example)}”</p>` : ''}
+      ${w.synonyms ? `<p><b>Syn:</b> ${esc(w.synonyms)}</p>` : ''}
+      ${w.note ? `<p style="color:var(--red)"><b>Error note:</b> ${esc(w.note)}</p>` : ''}
+    </div>
+    <div class="actions" id="revealRow"><button class="btn primary" id="revealBtn">Show meaning (Space)</button></div>
+    <div class="actions" id="gradeRow" hidden>
+      <button class="btn red" data-g="miss">✗ Missed (1)</button>
+      <button class="btn green" data-g="ok">✓ Knew it (2)</button>
+    </div></div>`;
+  $('#revealBtn').onclick = reveal;
+  box.querySelectorAll('[data-g]').forEach(b => b.onclick = () => grade(b.dataset.g));
+}
+function reveal(){ revealed = true; $('#ans').hidden = false; $('#revealRow').hidden = true; $('#gradeRow').hidden = false; }
+function grade(r){
+  const w = words.find(x => x.id === queue[qi].id) || queue[qi];
+  w.log = w.log || [];
+  w.log.push({ d: today(), r });
+  if (r === 'miss'){ w.misses = (w.misses || 0) + 1; w.status = 'red'; sess.miss++; } else { w.status = 'green'; sess.ok++; }
+  qi++; commit([w]); showCard();
+}
+document.addEventListener('keydown', e => {
+  if (!$('#revise').classList.contains('active') || !queue.length || qi >= queue.length) return;
+  if (e.target.matches('input, textarea, select')) return;
+  if (e.code === 'Space'){ e.preventDefault(); if (!revealed) reveal(); }
+  else if (revealed && e.key === '1') grade('miss');
+  else if (revealed && e.key === '2') grade('ok');
+});
+
+/* ---------- Error log ---------- */
+function renderErrors(){
+  if (document.activeElement && document.activeElement.classList.contains('note')) return; // don't interrupt typing
+  const list = words.filter(w => w.misses > 0).sort((a, b) => b.misses - a.misses);
+  const el = $('#errorTable');
+  if (!list.length){ el.innerHTML = '<p class="empty">No misses yet. Words land here when you mark them "Missed" in revision.</p>'; return; }
+  el.innerHTML = `<table><thead><tr><th>Word</th><th>Meaning</th><th>Missed</th><th>Last missed</th><th>Now</th><th>Confused with / why I missed it</th></tr></thead><tbody>
+    ${list.map(w => {
+      const lm = [...(w.log || [])].reverse().find(l => l.r === 'miss');
+      return `<tr data-id="${esc(w.id)}">
+        <td><b>${esc(w.word)}</b></td><td>${esc(w.meaning)}</td>
+        <td class="num">${w.misses}×</td><td>${lm ? fmtDate(lm.d) : '—'}</td>
+        <td><span class="dot ${w.status}" title="${w.status}"></span></td>
+        <td><input class="note" value="${esc(w.note)}" placeholder="e.g. mixed up with 'ingenuous'"></td></tr>`;
+    }).join('')}</tbody></table>`;
+}
+$('#errorTable').addEventListener('change', e => {
+  if (!e.target.classList.contains('note')) return;
+  const w = words.find(x => String(x.id) === e.target.closest('tr').dataset.id);
+  if (!w) return;
+  w.note = e.target.value.trim();
+  persist();
+  pushCloud([w], []).catch(err => setSync("⚠️ Couldn't sync: " + (err.code || err.message)));
+});
+$('#reviseErrors').onclick = () => { $('#revMode').value = 'errors'; showTab('revise'); startRevision(); };
+
+/* ---------- Stats ---------- */
+function renderStats(){
+  const t = today(), red = words.filter(w => w.status === 'red').length;
+  const addedToday = words.filter(w => w.added === t).length;
+  const reviewedToday = words.filter(w => (w.log || []).some(l => l.d === t)).length;
+  const days = new Set(); words.forEach(w => { days.add(w.added); (w.log || []).forEach(l => days.add(l.d)); });
+  let streak = 0, d = new Date();
+  if (!days.has(t)) d.setDate(d.getDate() - 1); // streak still alive if you haven't studied yet today
+  while (days.has(d.toLocaleDateString('en-CA'))){ streak++; d.setDate(d.getDate() - 1); }
+  $('#stats').innerHTML = `<span><b>${words.length}</b> words</span>
+    <span style="color:var(--red)"><b style="color:inherit">${red}</b> red</span>
+    <span style="color:var(--green)"><b style="color:inherit">${words.length - red}</b> green</span>
+    <span><b>${addedToday}</b> added today</span>
+    <span><b>${reviewedToday}</b> reviewed today</span>
+    <span>🔥 <b>${streak}</b>-day streak</span>`;
+}
+
+/* ---------- Backup ---------- */
+$('#exportBtn').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(words, null, 2)], { type: 'application/json' }));
+  a.download = `gre-vocab-${today()}.json`; a.click();
+};
+$('#importFile').onchange = e => {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      if (!Array.isArray(data)) throw 0;
+      if (confirm(`Import ${data.length} words? This replaces your current list.`)){
+        const newIds = new Set(data.map(w => String(w.id)));
+        const removed = words.filter(w => !newIds.has(String(w.id))).map(w => w.id);
+        words = sortWords(data);
+        commit(words, removed);
+      }
+    } catch { alert("That file doesn't look like a vocab backup."); }
+    e.target.value = '';
+  };
+  r.readAsText(file);
+};
+
+function render(){ renderStats(); renderList(); renderErrors(); }
+render();
+initSync();
+</script>
+</body>
+</html>
