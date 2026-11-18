@@ -9,6 +9,7 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+a{color:#2f4bd6}
 header,main{max-width:980px;margin:auto;padding:0 20px}
 header{padding-top:22px}
 .top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
@@ -29,6 +30,7 @@ input,textarea,select{width:100%;padding:9px 10px;border:1px solid var(--line);b
 textarea{resize:vertical;min-height:42px}
 .btn{padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;font:inherit;color:var(--ink);white-space:nowrap}
 .btn:hover{filter:brightness(.96)}
+.btn:disabled{opacity:.45;cursor:default}
 .btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
 .btn.red{background:var(--red);color:#fff;border-color:var(--red)}
 .btn.green{background:var(--green);color:#fff;border-color:var(--green)}
@@ -38,8 +40,8 @@ select.btn{width:auto}
 .wordrow{display:flex;gap:8px}
 #lookupMsg{font-size:13px;color:var(--muted);min-height:16px}
 #viewBanner{background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:10px;padding:10px 14px;margin-top:12px;font-size:14px}
-#sharePanel{margin-top:12px}
-.readonly #addForm,.readonly .side .row,.readonly #importLabel,.readonly #shareBtn,.readonly #sharePanel{display:none!important}
+#sharePanel,#aiPanel{margin-top:12px}
+.readonly #addForm,.readonly .side .row,.readonly #importLabel,.readonly #shareBtn,.readonly #sharePanel,.readonly #aiBtn,.readonly #aiPanel{display:none!important}
 .readonly .pill{cursor:default}
 .toolbar{display:flex;gap:8px;margin:18px 0 6px;flex-wrap:wrap}
 .toolbar input{flex:1;min-width:160px}
@@ -115,6 +117,7 @@ h3.sec{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--
     <div class="row">
       <span class="sync" id="syncStatus"></span>
       <select class="btn small" id="viewSelect" hidden></select>
+      <button class="btn small" id="aiBtn">✨ GRE AI</button>
       <button class="btn small" id="shareBtn" hidden>👥 Share</button>
       <button class="btn small primary" id="authBtn" hidden>Sign in with Google</button>
       <button class="btn small" id="exportBtn">Export backup</button>
@@ -123,6 +126,21 @@ h3.sec{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--
     </div>
   </div>
   <div id="viewBanner" hidden></div>
+  <div class="card" id="aiPanel" hidden>
+    <b>✨ GRE-style meanings, synonyms &amp; sentences</b>
+    <p class="sync" style="margin:4px 0 10px">Paste a free Google Gemini API key and the 🔍 Look up button will write entries like a GRE prep book. Get a key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> → Create API key. It's saved privately in your account; people you share with can't see it.</p>
+    <form class="row" id="aiForm" autocomplete="off">
+      <input type="password" id="aiKeyInput" placeholder="Paste your Gemini API key (starts with AIza…)" style="flex:1;min-width:220px">
+      <button class="btn primary" type="submit">Save key</button>
+      <button class="btn" type="button" id="aiRemove">Remove</button>
+    </form>
+    <p class="sync" id="aiMsg" style="margin:8px 0 0"></p>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" type="button" id="aiRewrite">Rewrite all my words GRE-style</button>
+      <button class="btn" type="button" id="aiStop" hidden>Stop</button>
+      <span class="sync" id="aiProgress"></span>
+    </div>
+  </div>
   <div class="card" id="sharePanel" hidden>
     <b>Share your words (view-only)</b>
     <p class="sync" style="margin:4px 0 10px">People you add sign in with their own Google account and can see your words, statuses, error log and analytics. They can't change anything.</p>
@@ -148,7 +166,7 @@ h3.sec{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--
     <form class="add card" id="addForm" autocomplete="off">
       <div class="wordrow">
         <input name="word" placeholder="Word (e.g. laconic)" required>
-        <button class="btn" type="button" id="lookupBtn" title="Fill meaning, example and synonyms from the dictionary">🔍 Look up</button>
+        <button class="btn" type="button" id="lookupBtn" title="Fill meaning, example and synonyms">🔍 Look up</button>
       </div>
       <input name="meaning" placeholder="Meaning (auto-fills when you type a word)">
       <textarea class="full" name="example" placeholder="Example sentence (optional)"></textarea>
@@ -225,14 +243,17 @@ const firebaseConfig = {
   appId: "1:539965852343:web:23bf4e4ff0a28f6f28db32"
 };
 const FB_URL = 'https://www.gstatic.com/firebasejs/12.9.0/';
+const AI_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest'];
 
 const KEY = 'greVocab.v1';
+const AIKEY = 'greVocab.aiKey';
 const EMPTY_REV = '<p class="empty">Pick a set and hit Start. Shortcuts: Space = reveal, 1 = missed, 2 = knew it, ← → = back / next.</p>';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
 const dayDiff = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);
 const fmtTime = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const sortWords = list => list.sort((a, b) =>
   (b.added || '').localeCompare(a.added || '') || (b.ts || 0) - (a.ts || 0) || String(b.id).localeCompare(String(a.id)));
 
@@ -240,6 +261,7 @@ let myWords = sortWords(load());   // your own words
 let words = myWords;               // what's on screen (yours, or someone else's when viewing)
 let viewing = null;                // set when viewing someone else's words (read-only)
 let editingId = null;
+let aiKey = (() => { try { return localStorage.getItem(AIKEY) || ''; } catch (e) { return ''; } })();
 
 function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } }
 function persist(){ try { localStorage.setItem(KEY, JSON.stringify(myWords)); } catch(e){} }
@@ -331,11 +353,16 @@ function startListening(){
     if (viewing && !owners.some(o => o.uid === viewing.uid)) stopViewing(true);
   }, err => console.warn('shares', err)));
 
-  // People I've shared my words with
+  // My profile doc: who I've shared with + my private AI key
+  let firstProfile = true;
   extraUnsubs.push(F.onSnapshot(F.doc(db, 'users', user.uid), snap => {
-    myViewers = (snap.exists() && snap.data().viewers) || [];
+    const data = snap.exists() ? snap.data() : {};
+    myViewers = data.viewers || [];
     renderShareList();
-  }, err => console.warn('viewers', err)));
+    if (data.aiKey && data.aiKey !== aiKey) setAiKey(data.aiKey, false);
+    else if (firstProfile && !data.aiKey && aiKey) saveAiKeyToCloud(aiKey); // key added on this device before signing in
+    firstProfile = false;
+  }, err => console.warn('profile', err)));
 }
 
 async function pushCloud(changed, removed){
@@ -392,7 +419,7 @@ function startViewing(o){
   stopEditing();
   viewing = o; words = []; resetRevision();
   document.body.classList.add('readonly');
-  $('#sharePanel').hidden = true;
+  $('#sharePanel').hidden = true; $('#aiPanel').hidden = true;
   const banner = $('#viewBanner');
   banner.hidden = false;
   banner.textContent = '👀 Viewing ' + (o.ownerName || o.ownerEmail) + "'s words (read-only). Use the menu at the top to switch back to your own.";
@@ -419,7 +446,7 @@ function stopViewing(doRender){
 }
 
 /* ---------- Sharing my words ---------- */
-$('#shareBtn').onclick = () => { $('#sharePanel').hidden = !$('#sharePanel').hidden; $('#shareMsg').textContent = ''; };
+$('#shareBtn').onclick = () => { $('#sharePanel').hidden = !$('#sharePanel').hidden; $('#aiPanel').hidden = true; $('#shareMsg').textContent = ''; };
 
 function renderShareList(){
   const el = $('#shareList');
@@ -462,6 +489,133 @@ $('#shareList').onclick = async e => {
   } catch (err) { alert("Couldn't remove access: " + (err.code || err.message)); }
 };
 
+/* ---------- GRE AI (Gemini) ---------- */
+function saveAiKeyToCloud(k){
+  if (!fb || !user) return;
+  fb.F.setDoc(fb.F.doc(fb.db, 'users', user.uid), { aiKey: k }, { merge: true })
+    .catch(e => console.warn('aiKey save', e));
+}
+function setAiKey(k, saveCloud){
+  aiKey = k || '';
+  try { aiKey ? localStorage.setItem(AIKEY, aiKey) : localStorage.removeItem(AIKEY); } catch (e) {}
+  if (saveCloud) saveAiKeyToCloud(aiKey);
+  updateAiUI();
+}
+function updateAiUI(){
+  $('#aiMsg').textContent = aiKey
+    ? '✓ Key saved (…' + aiKey.slice(-4) + '). 🔍 Look up now writes GRE-style entries.'
+    : 'No key yet — Look up uses the regular dictionary (general meanings).';
+  $('#aiRewrite').disabled = !aiKey || rewriting;
+  $('#addForm').meaning.placeholder = aiKey ? 'Meaning (✨ GRE-style auto-fill)' : 'Meaning (auto-fills when you type a word)';
+}
+
+async function aiLookup(word){
+  const prompt = `You are an expert GRE Verbal tutor writing flashcards in the style of top GRE prep books (Magoosh, Manhattan Prep, Barron's).
+For the word "${word}", return JSON with exactly these fields:
+- "meaning": the sense of the word most commonly tested on the GRE. Start with the part of speech in parentheses, e.g. "(adj.)". One concise, precise definition (max ~20 words). If the GRE also commonly tests a second, less obvious sense, add it after "; also:".
+- "synonyms": 4 to 6 single-word synonyms that are themselves GRE-level vocabulary and match that exact sense (the kind that pair up in GRE Sentence Equivalence questions). No phrases, no obscure archaic words.
+- "example": one sentence of 20 to 35 words in the formal, academic tone of a GRE Text Completion passage (topics like science, history, literature, art criticism, economics), using the word naturally so its meaning is clear from context.
+If "${word}" is not a real English word, return an empty string for "meaning".`;
+  let lastErr = new Error('No model available');
+  for (const model of AI_MODELS) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': aiKey },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.4,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              meaning: { type: 'STRING' },
+              synonyms: { type: 'ARRAY', items: { type: 'STRING' } },
+              example: { type: 'STRING' }
+            },
+            required: ['meaning', 'synonyms', 'example']
+          }
+        }
+      })
+    });
+    if (res.status === 404) { lastErr = new Error('model ' + model + ' not found'); continue; }
+    let data = {};
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok) {
+      const m = (data.error && data.error.message) || ('HTTP ' + res.status);
+      throw new Error(m.length > 140 ? m.slice(0, 140) + '…' : m);
+    }
+    const text = ((data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [])
+      .map(p => p.text || '').join('');
+    const json = text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
+    const j = JSON.parse(json);
+    return {
+      meaning: (j.meaning || '').trim(),
+      example: (j.example || '').trim(),
+      synonyms: (j.synonyms || []).map(s => String(s).trim()).filter(Boolean).join(', ')
+    };
+  }
+  throw lastErr;
+}
+
+$('#aiBtn').onclick = () => { $('#aiPanel').hidden = !$('#aiPanel').hidden; $('#sharePanel').hidden = true; updateAiUI(); };
+
+$('#aiForm').onsubmit = async e => {
+  e.preventDefault();
+  const k = $('#aiKeyInput').value.trim();
+  if (!k) return;
+  const old = aiKey;
+  aiKey = k;
+  $('#aiMsg').textContent = 'Testing your key…';
+  try {
+    const r = await aiLookup('laconic');
+    if (!r.meaning) throw new Error('empty response');
+    $('#aiKeyInput').value = '';
+    setAiKey(k, true);
+    $('#aiMsg').textContent = '✓ Key works! Test — laconic: ' + r.meaning;
+  } catch (err) {
+    aiKey = old;
+    $('#aiMsg').textContent = "⚠️ That key didn't work: " + err.message;
+  }
+};
+$('#aiRemove').onclick = () => {
+  if (!aiKey) return;
+  if (confirm('Remove your Gemini key? Look up will go back to the regular dictionary.')) setAiKey('', true);
+};
+
+let rewriting = false;
+$('#aiStop').onclick = () => { rewriting = false; $('#aiProgress').textContent = 'Stopping after this word…'; };
+$('#aiRewrite').onclick = async () => {
+  if (!aiKey || viewing || rewriting) return;
+  const list = myWords.slice();
+  if (!list.length) return;
+  if (!confirm(`Rewrite the meaning, synonyms and example sentence for all ${list.length} words in GRE style?\n\nThis replaces what's there now. Your red/green status, revision history and error notes stay the same. It takes about ${Math.max(1, Math.ceil(list.length * 7 / 60))} min — keep this tab open.`)) return;
+  rewriting = true; updateAiUI();
+  $('#aiStop').hidden = false;
+  let done = 0, failed = 0;
+  for (const w0 of list) {
+    if (!rewriting) break;
+    $('#aiProgress').textContent = `✨ ${done + 1} / ${list.length}: ${w0.word}…`;
+    try {
+      const r = await aiLookup(w0.word);
+      const w = myWords.find(x => x.id === w0.id);
+      if (w && r.meaning) { Object.assign(w, r); commit([w]); } else failed++;
+    } catch (err) {
+      failed++;
+      if (/quota|exhaust|429|rate/i.test(err.message)) {
+        $('#aiProgress').textContent = '⏳ Hit the free per-minute limit — waiting a minute…';
+        await sleep(60000);
+      }
+    }
+    done++;
+    if (rewriting) await sleep(7000);
+  }
+  rewriting = false;
+  $('#aiStop').hidden = true;
+  $('#aiProgress').textContent = `✓ Finished — ${done - failed} word${done - failed === 1 ? '' : 's'} rewritten${failed ? `, ${failed} skipped (run it again later or use Edit → Look up)` : ''}.`;
+  updateAiUI();
+};
+
 /* ---------- Tabs ---------- */
 function showTab(id){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
@@ -469,29 +623,53 @@ function showTab(id){
 }
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
 
-/* ---------- Dictionary lookup ---------- */
+/* ---------- Lookup (GRE AI first, dictionary as backup) ---------- */
+function fillForm(r, force){
+  const f = $('#addForm');
+  if (r.meaning && (force || !f.meaning.value.trim())) f.meaning.value = r.meaning;
+  if (r.example && (force || !f.example.value.trim())) f.example.value = r.example;
+  if (r.synonyms && (force || !f.synonyms.value.trim())) f.synonyms.value = r.synonyms;
+}
+
+async function dictLookup(word){
+  const res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word.toLowerCase()));
+  if (!res.ok) return null;
+  const data = await res.json();
+  const meanings = data.flatMap(e => e.meanings || []);
+  const defs = meanings.flatMap(m => (m.definitions || []).map(d => ({ ...d, pos: m.partOfSpeech })));
+  if (!defs.length) return null;
+  return {
+    meaning: defs.slice(0, 2).map(d => (d.pos ? '(' + d.pos + ') ' : '') + d.definition).join('; '),
+    example: (defs.find(d => d.example) || {}).example || '',
+    synonyms: [...new Set([...meanings.flatMap(m => m.synonyms || []), ...defs.flatMap(d => d.synonyms || [])])].slice(0, 6).join(', ')
+  };
+}
+
 async function lookup(force){
   const f = $('#addForm'), word = f.word.value.trim();
   const msg = $('#lookupMsg');
   if (!word) { msg.textContent = 'Type a word first.'; return; }
-  msg.textContent = 'Looking up "' + word + '"…';
+  let note = '';
+  if (aiKey) {
+    msg.textContent = '✨ Writing a GRE-style entry for "' + word + '"…';
+    try {
+      const r = await aiLookup(word);
+      if (f.word.value.trim() !== word) return; // word changed while we were waiting
+      if (r.meaning) { fillForm(r, force); msg.textContent = '✨ GRE-style meaning, synonyms and sentence added. Edit anything you like.'; return; }
+      note = "AI didn't recognise that word. ";
+    } catch (e) {
+      note = '⚠️ AI lookup failed (' + e.message + '). ';
+    }
+  }
+  msg.textContent = note + 'Looking up "' + word + '" in the dictionary…';
   try {
-    const res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word.toLowerCase()));
-    if (f.word.value.trim() !== word) return; // word changed while we were waiting
-    if (!res.ok) { msg.textContent = 'No dictionary entry found for "' + word + '" — type the meaning yourself.'; return; }
-    const data = await res.json();
-    const meanings = data.flatMap(e => e.meanings || []);
-    const defs = meanings.flatMap(m => (m.definitions || []).map(d => ({ ...d, pos: m.partOfSpeech })));
-    if (!defs.length) { msg.textContent = 'No meaning found — type it yourself.'; return; }
-    const meaning = defs.slice(0, 2).map(d => (d.pos ? '(' + d.pos + ') ' : '') + d.definition).join('; ');
-    const example = (defs.find(d => d.example) || {}).example || '';
-    const syns = [...new Set([...meanings.flatMap(m => m.synonyms || []), ...defs.flatMap(d => d.synonyms || [])])].slice(0, 6).join(', ');
-    if (force || !f.meaning.value.trim()) f.meaning.value = meaning;
-    if (example && (force || !f.example.value.trim())) f.example.value = example;
-    if (syns && (force || !f.synonyms.value.trim())) f.synonyms.value = syns;
-    msg.textContent = '✓ Filled from dictionary — edit it if you want the GRE-specific sense.';
+    const r = await dictLookup(word);
+    if (f.word.value.trim() !== word) return;
+    if (!r) { msg.textContent = note + 'No dictionary entry found — type the meaning yourself.'; return; }
+    fillForm(r, force);
+    msg.textContent = note + '✓ Filled from the dictionary' + (aiKey ? '.' : ' (general meaning). For GRE-style entries, add a free key under ✨ GRE AI.');
   } catch (e) {
-    msg.textContent = "Couldn't reach the dictionary — check your internet, or type the meaning yourself.";
+    msg.textContent = note + "Couldn't reach the dictionary — type the meaning yourself.";
   }
 }
 $('#lookupBtn').onclick = () => lookup(true);
@@ -573,6 +751,7 @@ $('#list').onclick = e => {
     const f = $('#addForm');
     f.word.value = w.word; f.meaning.value = w.meaning || ''; f.example.value = w.example || ''; f.synonyms.value = w.synonyms || '';
     editingId = w.id; $('#submitBtn').textContent = 'Save changes'; $('#cancelEdit').hidden = false;
+    $('#lookupMsg').textContent = 'Tip: click 🔍 Look up to replace this with a fresh ' + (aiKey ? 'GRE-style' : 'dictionary') + ' entry.';
     window.scrollTo({ top: 0, behavior: 'smooth' }); f.word.focus();
   }
 };
@@ -762,16 +941,13 @@ function renderAnalytics(){
     <h3 class="sec">Answers per day</h3>
     <div class="card">
       <div class="chart">
-        ${chartDays.map(s => {
-          const n = s.ok + s.miss;
-          return `<div class="bar" data-day="${s.d}" title="${fmtDate(s.d)}: ${s.ok} right, ${s.miss} wrong">
+        ${chartDays.map(s => `<div class="bar" data-day="${s.d}" title="${fmtDate(s.d)}: ${s.ok} right, ${s.miss} wrong">
             <div class="stack">
               ${s.miss ? `<div class="seg wrong" style="height:${s.miss / max * 100}%"></div>` : ''}
               ${s.ok ? `<div class="seg right" style="height:${s.ok / max * 100}%"></div>` : ''}
             </div>
             <div class="lbl">${lbl(s.d)}</div>
-          </div>`;
-        }).join('')}
+          </div>`).join('')}
       </div>
       <div class="legend"><span><i style="background:var(--green)"></i>Right</span><span><i style="background:var(--red)"></i>Wrong</span><span>Click a bar to see that day</span></div>
     </div>
@@ -787,8 +963,9 @@ function renderAnalytics(){
         time = ' · 🕒 ' + fmtTime(lo) + (hi - lo > 60000 ? ' – ' + fmtTime(hi) : '');
       }
       const dateFull = new Date(s.d + 'T00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+      const rel = fmtDate(s.d);
       return `<details class="dayrep" id="day-${s.d}" ${i === 0 ? 'open' : ''}>
-        <summary>${fmtDate(s.d) === dateFull ? dateFull : fmtDate(s.d) + ' · ' + dateFull}<span class="sub">${nWords} words · ${n} answers · ✓ ${s.ok} · ✗ ${s.miss} · ${a}%${time}</span></summary>
+        <summary>${rel === 'Today' || rel === 'Yesterday' ? rel + ' · ' + dateFull : dateFull}<span class="sub">${nWords} words · ${n} answers · ✓ ${s.ok} · ✗ ${s.miss} · ${a}%${time}</span></summary>
         <div class="cols">
           <div><h4 style="color:var(--green)">✓ Got right (${s.right.size})</h4>${chipsFrom(s.right, 'ok')}</div>
           <div><h4 style="color:var(--red)">✗ Got wrong (${s.wrong.size})</h4>${chipsFrom(s.wrong, 'miss')}</div>
@@ -861,6 +1038,7 @@ $('#importFile').onchange = e => {
 
 function render(){ renderStats(); renderList(); renderErrors(); renderAnalytics(); }
 render();
+updateAiUI();
 initSync();
 </script>
 </body>
