@@ -32,9 +32,14 @@ textarea{resize:vertical;min-height:42px}
 .btn.red{background:var(--red);color:#fff;border-color:var(--red)}
 .btn.green{background:var(--green);color:#fff;border-color:var(--green)}
 .btn.small{padding:6px 10px;font-size:13px}
+select.btn{width:auto}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .wordrow{display:flex;gap:8px}
 #lookupMsg{font-size:13px;color:var(--muted);min-height:16px}
+#viewBanner{background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:10px;padding:10px 14px;margin-top:12px;font-size:14px}
+#sharePanel{margin-top:12px}
+.readonly #addForm,.readonly .side .row,.readonly #importLabel,.readonly #shareBtn,.readonly #sharePanel{display:none!important}
+.readonly .pill{cursor:default}
 .toolbar{display:flex;gap:8px;margin:18px 0 6px;flex-wrap:wrap}
 .toolbar input{flex:1;min-width:160px}
 .toolbar select{width:auto}
@@ -77,11 +82,24 @@ td.num{font-weight:700;color:var(--red)}
     <h1>📚 GRE Vocab Log</h1>
     <div class="row">
       <span class="sync" id="syncStatus"></span>
+      <select class="btn small" id="viewSelect" hidden></select>
+      <button class="btn small" id="shareBtn" hidden>👥 Share</button>
       <button class="btn small primary" id="authBtn" hidden>Sign in with Google</button>
       <button class="btn small" id="exportBtn">Export backup</button>
-      <label class="btn small" for="importFile">Import</label>
+      <label class="btn small" id="importLabel" for="importFile">Import</label>
       <input type="file" id="importFile" accept=".json">
     </div>
+  </div>
+  <div id="viewBanner" hidden></div>
+  <div class="card" id="sharePanel" hidden>
+    <b>Share your words (view-only)</b>
+    <p class="sync" style="margin:4px 0 10px">People you add sign in with their own Google account and can see your words, statuses and error log. They can't change anything.</p>
+    <form class="row" id="shareForm">
+      <input type="email" id="shareEmail" placeholder="Their Google / Gmail address" required style="flex:1;min-width:200px">
+      <button class="btn primary" type="submit">Give access</button>
+    </form>
+    <p class="sync" id="shareMsg" style="margin:8px 0 0"></p>
+    <div id="shareList" style="margin-top:10px"></div>
   </div>
   <div class="stats" id="stats"></div>
   <nav>
@@ -143,7 +161,7 @@ td.num{font-weight:700;color:var(--red)}
   <!-- ERROR LOG -->
   <section class="panel" id="errors">
     <div class="row" style="justify-content:space-between">
-      <p style="margin:0;color:var(--muted)">Every word you've missed in revision, worst first.</p>
+      <p style="margin:0;color:var(--muted)">Every word missed in revision, worst first.</p>
       <button class="btn small primary" id="reviseErrors">Revise these</button>
     </div>
     <div class="table-wrap" id="errorTable"></div>
@@ -163,6 +181,7 @@ const firebaseConfig = {
 const FB_URL = 'https://www.gstatic.com/firebasejs/12.9.0/';
 
 const KEY = 'greVocab.v1';
+const EMPTY_REV = '<p class="empty">Pick a set and hit Start. Shortcuts: Space = reveal, 1 = missed, 2 = knew it.</p>';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
@@ -170,14 +189,18 @@ const dayDiff = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00
 const sortWords = list => list.sort((a, b) =>
   (b.added || '').localeCompare(a.added || '') || (b.ts || 0) - (a.ts || 0) || String(b.id).localeCompare(String(a.id)));
 
-let words = sortWords(load());
+let myWords = sortWords(load());   // your own words
+let words = myWords;               // what's on screen (yours, or someone else's when viewing)
+let viewing = null;                // set when viewing someone else's words (read-only)
 let editingId = null;
 
 function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } }
-function persist(){ try { localStorage.setItem(KEY, JSON.stringify(words)); } catch(e){} }
+function persist(){ try { localStorage.setItem(KEY, JSON.stringify(myWords)); } catch(e){} }
+function setMine(list){ myWords = list; if (!viewing) words = list; }
 
 /* commit = save on this device + push changes to the cloud (if signed in) */
 function commit(changed = [], removed = []){
+  if (viewing) return;
   persist(); render();
   pushCloud(changed, removed).catch(e => setSync("⚠️ Couldn't sync: " + (e.code || e.message)));
 }
@@ -191,7 +214,7 @@ function fmtDate(d){
 const lastReviewed = w => (w.log && w.log.length) ? w.log[w.log.length - 1].d : null;
 
 /* ---------- Cloud sync (Firebase) ---------- */
-let fb = null, user = null, unsub = null;
+let fb = null, user = null, myUnsub = null, extraUnsubs = [], viewUnsub = null, owners = [], myViewers = [];
 function setSync(t){ $('#syncStatus').textContent = t; }
 
 async function initSync(){
@@ -207,7 +230,7 @@ async function initSync(){
     fb = { auth: authM.getAuth(app), db: fsM.getFirestore(app), A: authM, F: fsM };
     authM.onAuthStateChanged(fb.auth, u => {
       user = u;
-      if (unsub) { unsub(); unsub = null; }
+      stopListeners();
       updateAuthUI();
       if (u) startListening();
     });
@@ -219,33 +242,57 @@ async function initSync(){
 
 function updateAuthUI(){
   const btn = $('#authBtn'); btn.hidden = false;
+  $('#shareBtn').hidden = !user;
+  if (!user) $('#sharePanel').hidden = true;
   if (user) { btn.textContent = 'Sign out'; btn.classList.remove('primary'); setSync('☁️ Syncing… ' + (user.email || '')); }
   else { btn.textContent = 'Sign in with Google'; btn.classList.add('primary'); setSync('💾 This device only — sign in to sync'); }
+}
+
+function stopListeners(){
+  if (myUnsub) { myUnsub(); myUnsub = null; }
+  extraUnsubs.forEach(f => f()); extraUnsubs = [];
+  owners = []; myViewers = [];
+  stopViewing(true);
+  renderViewSelect(); renderShareList();
 }
 
 function startListening(){
   const { F, db } = fb;
   let first = true;
-  const col = F.collection(db, 'users', user.uid, 'words');
-  unsub = F.onSnapshot(col, snap => {
+
+  // My own words
+  myUnsub = F.onSnapshot(F.collection(db, 'users', user.uid, 'words'), snap => {
     const cloud = snap.docs.map(d => d.data());
     if (first) {
       first = false;
       // First sign-in on this account: upload words already saved on this device
-      if (!cloud.length && words.length) {
-        setSync('☁️ Uploading ' + words.length + ' words…');
-        pushCloud(words, []).catch(e => setSync("⚠️ Couldn't upload: " + (e.code || e.message)));
+      if (!cloud.length && myWords.length) {
+        setSync('☁️ Uploading ' + myWords.length + ' words…');
+        pushCloud(myWords, []).catch(e => setSync("⚠️ Couldn't upload: " + (e.code || e.message)));
         return;
       }
     }
-    words = sortWords(cloud);
-    persist(); render();
+    setMine(sortWords(cloud)); persist();
+    if (!viewing) render();
     setSync('☁️ Synced · ' + (user.email || ''));
-  }, err => setSync('⚠️ Sync error: ' + err.code + ' (check Firestore setup)'));
+  }, err => setSync('⚠️ Sync error: ' + err.code + ' (check Firestore rules)'));
+
+  // People who have shared their words with me
+  extraUnsubs.push(F.onSnapshot(F.collection(db, 'shares', (user.email || '').toLowerCase(), 'owners'), snap => {
+    owners = snap.docs.map(d => ({ uid: d.id, ...d.data() })).filter(o => o.uid !== user.uid);
+    renderViewSelect();
+    if (viewing && !owners.some(o => o.uid === viewing.uid)) stopViewing(true);
+  }, err => console.warn('shares', err)));
+
+  // People I've shared my words with
+  extraUnsubs.push(F.onSnapshot(F.doc(db, 'users', user.uid), snap => {
+    myViewers = (snap.exists() && snap.data().viewers) || [];
+    renderShareList();
+  }, err => console.warn('viewers', err)));
 }
 
 async function pushCloud(changed, removed){
-  if (!fb || !user) return;
+  if (!fb || !user || viewing) return;
   const { F, db } = fb;
   const ops = [...changed.map(w => ['set', w]), ...removed.map(id => ['del', id])];
   for (let i = 0; i < ops.length; i += 450) {
@@ -275,6 +322,97 @@ $('#authBtn').onclick = async () => {
     }
     alert('Sign-in failed: ' + e.code + (e.code === 'auth/unauthorized-domain' ? '\n\nAdd minikaintura-dev.github.io under Firebase → Authentication → Settings → Authorized domains.' : ''));
   }
+};
+
+/* ---------- Viewing someone else's words (read-only) ---------- */
+function renderViewSelect(){
+  const sel = $('#viewSelect');
+  if (!owners.length) { sel.hidden = true; sel.innerHTML = ''; return; }
+  sel.hidden = false;
+  sel.innerHTML = '<option value="me">📒 My words</option>' +
+    owners.map(o => `<option value="${esc(o.uid)}">👀 ${esc(o.ownerName || o.ownerEmail)}'s words</option>`).join('');
+  sel.value = viewing ? viewing.uid : 'me';
+}
+$('#viewSelect').onchange = e => {
+  const v = e.target.value;
+  if (v === 'me') stopViewing(true); else startViewing(owners.find(o => o.uid === v));
+};
+
+function startViewing(o){
+  if (!o || !fb) return;
+  const { F, db } = fb;
+  if (viewUnsub) { viewUnsub(); viewUnsub = null; }
+  stopEditing();
+  viewing = o; words = []; resetRevision();
+  document.body.classList.add('readonly');
+  $('#sharePanel').hidden = true;
+  const banner = $('#viewBanner');
+  banner.hidden = false;
+  banner.textContent = '👀 Viewing ' + (o.ownerName || o.ownerEmail) + "'s words (read-only). Use the menu at the top to switch back to your own.";
+  render();
+  viewUnsub = F.onSnapshot(F.collection(db, 'users', o.uid, 'words'), snap => {
+    if (viewing !== o) return;
+    words = sortWords(snap.docs.map(d => d.data()));
+    render();
+  }, err => {
+    if (viewing !== o) return;
+    alert("You don't have access to " + (o.ownerName || o.ownerEmail) + "'s words anymore.");
+    stopViewing(true);
+  });
+}
+
+function stopViewing(doRender){
+  if (viewUnsub) { viewUnsub(); viewUnsub = null; }
+  if (!viewing) return;
+  viewing = null; words = myWords; resetRevision();
+  document.body.classList.remove('readonly');
+  $('#viewBanner').hidden = true;
+  if ($('#viewSelect').options.length) $('#viewSelect').value = 'me';
+  if (doRender) render();
+}
+
+/* ---------- Sharing my words ---------- */
+$('#shareBtn').onclick = () => { $('#sharePanel').hidden = !$('#sharePanel').hidden; $('#shareMsg').textContent = ''; };
+
+function renderShareList(){
+  const el = $('#shareList');
+  el.innerHTML = myViewers.length
+    ? myViewers.map(e => `<div class="row" style="justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)"><span>${esc(e)}</span><button class="link" data-email="${esc(e)}">Remove access</button></div>`).join('')
+    : '<p class="sync" style="margin:0">No one has access yet.</p>';
+}
+
+$('#shareForm').onsubmit = async e => {
+  e.preventDefault();
+  if (!fb || !user) return;
+  const email = $('#shareEmail').value.trim().toLowerCase();
+  const msg = $('#shareMsg');
+  if (!email.includes('@')) { msg.textContent = 'Enter a valid email.'; return; }
+  if (email === (user.email || '').toLowerCase()) { msg.textContent = "That's your own email 🙂"; return; }
+  const { F, db } = fb;
+  const name = user.displayName || user.email;
+  try {
+    const b = F.writeBatch(db);
+    b.set(F.doc(db, 'users', user.uid), { viewers: F.arrayUnion(email), ownerEmail: user.email, ownerName: name }, { merge: true });
+    b.set(F.doc(db, 'shares', email, 'owners', user.uid), { ownerEmail: user.email, ownerName: name, ts: Date.now() });
+    await b.commit();
+    $('#shareEmail').value = '';
+    msg.textContent = '✓ Done! Ask them to open ' + location.origin + location.pathname + ' and sign in with ' + email + '.';
+  } catch (err) {
+    msg.textContent = "⚠️ Couldn't share: " + (err.code || err.message) + ' — did you publish the new Firestore rules?';
+  }
+};
+
+$('#shareList').onclick = async e => {
+  const b = e.target.closest('[data-email]'); if (!b || !fb || !user) return;
+  const email = b.dataset.email;
+  if (!confirm('Remove ' + email + "'s access?")) return;
+  const { F, db } = fb;
+  try {
+    const batch = F.writeBatch(db);
+    batch.set(F.doc(db, 'users', user.uid), { viewers: F.arrayRemove(email) }, { merge: true });
+    batch.delete(F.doc(db, 'shares', email, 'owners', user.uid));
+    await batch.commit();
+  } catch (err) { alert("Couldn't remove access: " + (err.code || err.message)); }
 };
 
 /* ---------- Tabs ---------- */
@@ -318,19 +456,20 @@ $('#addForm').word.addEventListener('blur', () => {
 /* ---------- Add / edit ---------- */
 $('#addForm').onsubmit = async e => {
   e.preventDefault();
+  if (viewing) return;
   const f = e.target, word = f.word.value.trim();
   if (!word) return;
   if (!editingId && !f.meaning.value.trim()) await lookup(false);
   const data = { word, meaning: f.meaning.value.trim(), example: f.example.value.trim(), synonyms: f.synonyms.value.trim() };
   if (editingId) {
-    const w = words.find(x => x.id === editingId);
+    const w = myWords.find(x => x.id === editingId);
     stopEditing();
     if (w) { Object.assign(w, data); commit([w]); }
   } else {
-    if (words.some(w => w.word.toLowerCase() === word.toLowerCase()) && !confirm(`"${word}" is already in your list. Add it again?`)) return;
+    if (myWords.some(w => w.word.toLowerCase() === word.toLowerCase()) && !confirm(`"${word}" is already in your list. Add it again?`)) return;
     const w = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...data,
       status: 'red', added: today(), ts: Date.now(), misses: 0, log: [], note: '' };
-    words.unshift(w);
+    myWords.unshift(w);
     f.reset(); $('#lookupMsg').textContent = ''; f.word.focus();
     commit([w]);
   }
@@ -362,7 +501,7 @@ function renderList(){
   let list = words.filter(w => (fs === 'all' || w.status === fs) &&
     `${w.word} ${w.meaning} ${w.synonyms}`.toLowerCase().includes(q));
   const el = $('#list');
-  if (!list.length){ el.innerHTML = `<p class="empty">${words.length ? 'No matches.' : 'No words yet — add your first one above.'}</p>`; return; }
+  if (!list.length){ el.innerHTML = `<p class="empty">${words.length ? 'No matches.' : (viewing ? 'No words here yet.' : 'No words yet — add your first one above.')}</p>`; return; }
   if (sort === 'az') list.sort((a, b) => a.word.localeCompare(b.word));
   if (sort === 'misses') list.sort((a, b) => (b.misses || 0) - (a.misses || 0));
   if (sort === 'date'){
@@ -376,12 +515,13 @@ function renderList(){
 }
 
 $('#list').onclick = e => {
+  if (viewing) return;
   const b = e.target.closest('[data-act]'); if (!b) return;
-  const w = words.find(x => String(x.id) === b.closest('.word').dataset.id);
+  const w = myWords.find(x => String(x.id) === b.closest('.word').dataset.id);
   if (!w) return;
   const act = b.dataset.act;
   if (act === 'toggle'){ w.status = w.status === 'red' ? 'green' : 'red'; commit([w]); }
-  if (act === 'del' && confirm(`Delete "${w.word}"?`)){ words = words.filter(x => x !== w); commit([], [w.id]); }
+  if (act === 'del' && confirm(`Delete "${w.word}"?`)){ setMine(myWords.filter(x => x !== w)); commit([], [w.id]); }
   if (act === 'edit'){
     const f = $('#addForm');
     f.word.value = w.word; f.meaning.value = w.meaning || ''; f.example.value = w.example || ''; f.synonyms.value = w.synonyms || '';
@@ -392,6 +532,8 @@ $('#list').onclick = e => {
 
 /* ---------- Revision ---------- */
 let queue = [], qi = 0, revealed = false, sess = { ok: 0, miss: 0 };
+
+function resetRevision(){ queue = []; qi = 0; $('#revBox').innerHTML = EMPTY_REV; }
 
 function startRevision(){
   const mode = $('#revMode').value, t = today();
@@ -417,7 +559,7 @@ function showCard(){
   }
   const w = queue[qi]; revealed = false;
   box.innerHTML = `<div class="card flash">
-    <div class="prog">${qi + 1} / ${queue.length} · currently <span class="pill ${w.status}">${w.status}</span></div>
+    <div class="prog">${qi + 1} / ${queue.length} · currently <span class="pill ${w.status}">${w.status}</span>${viewing ? ' · practice only (not saved)' : ''}</div>
     <div class="fw">${esc(w.word)}</div>
     <div id="ans" hidden>
       <div class="m">${esc(w.meaning) || '<i>No meaning added</i>'}</div>
@@ -435,7 +577,8 @@ function showCard(){
 }
 function reveal(){ revealed = true; $('#ans').hidden = false; $('#revealRow').hidden = true; $('#gradeRow').hidden = false; }
 function grade(r){
-  const w = words.find(x => x.id === queue[qi].id) || queue[qi];
+  if (viewing) { if (r === 'miss') sess.miss++; else sess.ok++; qi++; showCard(); return; }
+  const w = myWords.find(x => x.id === queue[qi].id) || queue[qi];
   w.log = w.log || [];
   w.log.push({ d: today(), r });
   if (r === 'miss'){ w.misses = (w.misses || 0) + 1; w.status = 'red'; sess.miss++; } else { w.status = 'green'; sess.ok++; }
@@ -454,7 +597,7 @@ function renderErrors(){
   if (document.activeElement && document.activeElement.classList.contains('note')) return; // don't interrupt typing
   const list = words.filter(w => w.misses > 0).sort((a, b) => b.misses - a.misses);
   const el = $('#errorTable');
-  if (!list.length){ el.innerHTML = '<p class="empty">No misses yet. Words land here when you mark them "Missed" in revision.</p>'; return; }
+  if (!list.length){ el.innerHTML = '<p class="empty">No misses yet. Words land here when they\'re marked "Missed" in revision.</p>'; return; }
   el.innerHTML = `<table><thead><tr><th>Word</th><th>Meaning</th><th>Missed</th><th>Last missed</th><th>Now</th><th>Confused with / why I missed it</th></tr></thead><tbody>
     ${list.map(w => {
       const lm = [...(w.log || [])].reverse().find(l => l.r === 'miss');
@@ -462,12 +605,12 @@ function renderErrors(){
         <td><b>${esc(w.word)}</b></td><td>${esc(w.meaning)}</td>
         <td class="num">${w.misses}×</td><td>${lm ? fmtDate(lm.d) : '—'}</td>
         <td><span class="dot ${w.status}" title="${w.status}"></span></td>
-        <td><input class="note" value="${esc(w.note)}" placeholder="e.g. mixed up with 'ingenuous'"></td></tr>`;
+        <td><input class="note" value="${esc(w.note)}" placeholder="${viewing ? '' : "e.g. mixed up with 'ingenuous'"}" ${viewing ? 'readonly' : ''}></td></tr>`;
     }).join('')}</tbody></table>`;
 }
 $('#errorTable').addEventListener('change', e => {
-  if (!e.target.classList.contains('note')) return;
-  const w = words.find(x => String(x.id) === e.target.closest('tr').dataset.id);
+  if (viewing || !e.target.classList.contains('note')) return;
+  const w = myWords.find(x => String(x.id) === e.target.closest('tr').dataset.id);
   if (!w) return;
   w.note = e.target.value.trim();
   persist();
@@ -500,6 +643,7 @@ $('#exportBtn').onclick = () => {
 };
 $('#importFile').onchange = e => {
   const file = e.target.files[0]; if (!file) return;
+  if (viewing) { e.target.value = ''; return; }
   const r = new FileReader();
   r.onload = () => {
     try {
@@ -507,9 +651,9 @@ $('#importFile').onchange = e => {
       if (!Array.isArray(data)) throw 0;
       if (confirm(`Import ${data.length} words? This replaces your current list.`)){
         const newIds = new Set(data.map(w => String(w.id)));
-        const removed = words.filter(w => !newIds.has(String(w.id))).map(w => w.id);
-        words = sortWords(data);
-        commit(words, removed);
+        const removed = myWords.filter(w => !newIds.has(String(w.id))).map(w => w.id);
+        setMine(sortWords(data));
+        commit(myWords, removed);
       }
     } catch { alert("That file doesn't look like a vocab backup."); }
     e.target.value = '';
