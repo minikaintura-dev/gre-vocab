@@ -25,13 +25,15 @@ form.add .full{grid-column:1/-1}
 @media(max-width:640px){form.add{grid-template-columns:1fr}}
 input,textarea,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
 textarea{resize:vertical;min-height:42px}
-.btn{padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;font:inherit;color:var(--ink)}
+.btn{padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;font:inherit;color:var(--ink);white-space:nowrap}
 .btn:hover{filter:brightness(.96)}
 .btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
 .btn.red{background:var(--red);color:#fff;border-color:var(--red)}
 .btn.green{background:var(--green);color:#fff;border-color:var(--green)}
 .btn.small{padding:6px 10px;font-size:13px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.wordrow{display:flex;gap:8px}
+#lookupMsg{font-size:13px;color:var(--muted);min-height:16px}
 .toolbar{display:flex;gap:8px;margin:18px 0 6px;flex-wrap:wrap}
 .toolbar input{flex:1;min-width:160px}
 .toolbar select{width:auto}
@@ -90,275 +92,13 @@ td.num{font-weight:700;color:var(--red)}
   <!-- WORDS -->
   <section class="panel active" id="words">
     <form class="add card" id="addForm" autocomplete="off">
-      <input name="word" placeholder="Word (e.g. laconic)" required>
-      <input name="meaning" placeholder="Meaning">
+      <div class="wordrow">
+        <input name="word" placeholder="Word (e.g. laconic)" required>
+        <button class="btn" type="button" id="lookupBtn" title="Fill meaning, example and synonyms from the dictionary">🔍 Look up</button>
+      </div>
+      <input name="meaning" placeholder="Meaning (auto-fills when you type a word)">
       <textarea class="full" name="example" placeholder="Example sentence (optional)"></textarea>
       <input class="full" name="synonyms" placeholder="Synonyms / related words (optional)">
+      <div class="full" id="lookupMsg"></div>
       <div class="full row">
         <button class="btn primary" id="submitBtn" type="submit">Add word</button>
-        <button class="btn" id="cancelEdit" type="button" hidden>Cancel edit</button>
-      </div>
-    </form>
-    <div class="toolbar">
-      <input id="search" placeholder="Search words, meanings, synonyms…">
-      <select id="filter">
-        <option value="all">All</option>
-        <option value="red">🔴 Red only</option>
-        <option value="green">🟢 Green only</option>
-      </select>
-      <select id="sort">
-        <option value="date">By day added</option>
-        <option value="az">A → Z</option>
-        <option value="misses">Most missed</option>
-      </select>
-    </div>
-    <div id="list"></div>
-  </section>
-
-  <!-- REVISE -->
-  <section class="panel" id="revise">
-    <div class="card row">
-      <span>Revise:</span>
-      <select id="revMode" style="width:auto">
-        <option value="due">Due (red + green not seen in 3+ days)</option>
-        <option value="red">Red words only</option>
-        <option value="today">Words added today</option>
-        <option value="errors">Error-log words</option>
-        <option value="all">All words</option>
-      </select>
-      <button class="btn primary" id="startRev">Start</button>
-    </div>
-    <div id="revBox"><p class="empty">Pick a set and hit Start. Shortcuts: Space = reveal, 1 = missed, 2 = knew it.</p></div>
-  </section>
-
-  <!-- ERROR LOG -->
-  <section class="panel" id="errors">
-    <div class="row" style="justify-content:space-between">
-      <p style="margin:0;color:var(--muted)">Every word you've missed in revision, worst first.</p>
-      <button class="btn small primary" id="reviseErrors">Revise these</button>
-    </div>
-    <div class="table-wrap" id="errorTable"></div>
-  </section>
-</main>
-
-<script>
-const KEY = 'greVocab.v1';
-const $ = s => document.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
-const dayDiff = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);
-
-let words = load();
-let editingId = null;
-
-function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } }
-function persist(){ try { localStorage.setItem(KEY, JSON.stringify(words)); } catch(e){ alert('Could not save — your browser may be blocking storage.'); } }
-function save(){ persist(); render(); }
-
-function fmtDate(d){
-  const diff = dayDiff(today(), d);
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Yesterday';
-  return new Date(d + 'T00:00').toLocaleDateString(undefined, {weekday:'short', day:'numeric', month:'short', year:'numeric'});
-}
-const lastReviewed = w => w.log.length ? w.log[w.log.length - 1].d : null;
-
-/* ---------- Tabs ---------- */
-function showTab(id){
-  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
-  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === id));
-}
-document.querySelectorAll('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
-
-/* ---------- Add / edit ---------- */
-$('#addForm').onsubmit = e => {
-  e.preventDefault();
-  const f = e.target, word = f.word.value.trim();
-  if (!word) return;
-  const data = { word, meaning: f.meaning.value.trim(), example: f.example.value.trim(), synonyms: f.synonyms.value.trim() };
-  if (editingId) {
-    Object.assign(words.find(w => w.id === editingId), data);
-    stopEditing();
-  } else {
-    if (words.some(w => w.word.toLowerCase() === word.toLowerCase()) && !confirm(`"${word}" is already in your list. Add it again?`)) return;
-    words.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...data,
-      status: 'red', added: today(), misses: 0, log: [], note: '' });
-  }
-  f.reset(); f.word.focus(); save();
-};
-function stopEditing(){ editingId = null; $('#submitBtn').textContent = 'Add word'; $('#cancelEdit').hidden = true; $('#addForm').reset(); }
-$('#cancelEdit').onclick = stopEditing;
-
-/* ---------- Word list ---------- */
-['search','filter','sort'].forEach(id => $('#' + id).addEventListener('input', renderList));
-
-function wordHTML(w){
-  return `<div class="word ${w.status}" data-id="${w.id}">
-    <div class="body">
-      <div class="w">${esc(w.word)}</div>
-      ${w.meaning ? `<div class="m">${esc(w.meaning)}</div>` : ''}
-      ${w.example ? `<div class="ex">“${esc(w.example)}”</div>` : ''}
-      ${w.synonyms ? `<div class="syn"><b>Syn:</b> ${esc(w.synonyms)}</div>` : ''}
-      <div class="meta">Added ${fmtDate(w.added)} · Reviewed ${w.log.length}× · Missed ${w.misses}×</div>
-    </div>
-    <div class="side">
-      <button class="pill ${w.status}" data-act="toggle" title="Click to flip status">${w.status === 'red' ? '● Red' : '● Green'}</button>
-      <div class="row"><button class="link" data-act="edit">Edit</button><button class="link" data-act="del">Delete</button></div>
-    </div>
-  </div>`;
-}
-
-function renderList(){
-  const q = $('#search').value.toLowerCase().trim(), fs = $('#filter').value, sort = $('#sort').value;
-  let list = words.filter(w => (fs === 'all' || w.status === fs) &&
-    `${w.word} ${w.meaning} ${w.synonyms}`.toLowerCase().includes(q));
-  const el = $('#list');
-  if (!list.length){ el.innerHTML = `<p class="empty">${words.length ? 'No matches.' : 'No words yet — add your first one above.'}</p>`; return; }
-  if (sort === 'az') list.sort((a, b) => a.word.localeCompare(b.word));
-  if (sort === 'misses') list.sort((a, b) => b.misses - a.misses);
-  if (sort === 'date'){
-    const groups = {};
-    list.forEach(w => (groups[w.added] ||= []).push(w));
-    el.innerHTML = Object.keys(groups).sort().reverse().map(d => {
-      const g = groups[d], reds = g.filter(w => w.status === 'red').length;
-      return `<div class="day"><h3>${fmtDate(d)} · ${g.length} word${g.length > 1 ? 's' : ''} · ${reds} red</h3>${g.map(wordHTML).join('')}</div>`;
-    }).join('');
-  } else el.innerHTML = list.map(wordHTML).join('');
-}
-
-$('#list').onclick = e => {
-  const b = e.target.closest('[data-act]'); if (!b) return;
-  const w = words.find(x => x.id === b.closest('.word').dataset.id);
-  const act = b.dataset.act;
-  if (act === 'toggle'){ w.status = w.status === 'red' ? 'green' : 'red'; save(); }
-  if (act === 'del' && confirm(`Delete "${w.word}"?`)){ words = words.filter(x => x !== w); save(); }
-  if (act === 'edit'){
-    const f = $('#addForm');
-    f.word.value = w.word; f.meaning.value = w.meaning; f.example.value = w.example; f.synonyms.value = w.synonyms;
-    editingId = w.id; $('#submitBtn').textContent = 'Save changes'; $('#cancelEdit').hidden = false;
-    window.scrollTo({ top: 0, behavior: 'smooth' }); f.word.focus();
-  }
-};
-
-/* ---------- Revision ---------- */
-let queue = [], qi = 0, revealed = false, sess = { ok: 0, miss: 0 };
-
-function startRevision(){
-  const mode = $('#revMode').value, t = today();
-  queue = words.filter(w =>
-    mode === 'all' ||
-    (mode === 'red' && w.status === 'red') ||
-    (mode === 'today' && w.added === t) ||
-    (mode === 'errors' && w.misses > 0) ||
-    (mode === 'due' && (w.status === 'red' || !lastReviewed(w) || dayDiff(t, lastReviewed(w)) >= 3)));
-  for (let i = queue.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [queue[i], queue[j]] = [queue[j], queue[i]]; }
-  qi = 0; sess = { ok: 0, miss: 0 }; showCard();
-}
-$('#startRev').onclick = startRevision;
-
-function showCard(){
-  const box = $('#revBox');
-  if (!queue.length){ box.innerHTML = '<p class="empty">Nothing in this set right now 🎉</p>'; return; }
-  if (qi >= queue.length){
-    box.innerHTML = `<div class="card flash"><div class="fw">Done!</div>
-      <p>✅ ${sess.ok} knew · ❌ ${sess.miss} missed</p>
-      <button class="btn primary" id="again">Go again</button></div>`;
-    $('#again').onclick = startRevision; return;
-  }
-  const w = queue[qi]; revealed = false;
-  box.innerHTML = `<div class="card flash">
-    <div class="prog">${qi + 1} / ${queue.length} · currently <span class="pill ${w.status}">${w.status}</span></div>
-    <div class="fw">${esc(w.word)}</div>
-    <div id="ans" hidden>
-      <div class="m">${esc(w.meaning) || '<i>No meaning added</i>'}</div>
-      ${w.example ? `<p class="ex" style="color:var(--muted);font-style:italic">“${esc(w.example)}”</p>` : ''}
-      ${w.synonyms ? `<p><b>Syn:</b> ${esc(w.synonyms)}</p>` : ''}
-      ${w.note ? `<p style="color:var(--red)"><b>Error note:</b> ${esc(w.note)}</p>` : ''}
-    </div>
-    <div class="actions" id="revealRow"><button class="btn primary" id="revealBtn">Show meaning (Space)</button></div>
-    <div class="actions" id="gradeRow" hidden>
-      <button class="btn red" data-g="miss">✗ Missed (1)</button>
-      <button class="btn green" data-g="ok">✓ Knew it (2)</button>
-    </div></div>`;
-  $('#revealBtn').onclick = reveal;
-  box.querySelectorAll('[data-g]').forEach(b => b.onclick = () => grade(b.dataset.g));
-}
-function reveal(){ revealed = true; $('#ans').hidden = false; $('#revealRow').hidden = true; $('#gradeRow').hidden = false; }
-function grade(r){
-  const w = queue[qi];
-  w.log.push({ d: today(), r });
-  if (r === 'miss'){ w.misses++; w.status = 'red'; sess.miss++; } else { w.status = 'green'; sess.ok++; }
-  qi++; save(); showCard();
-}
-document.addEventListener('keydown', e => {
-  if (!$('#revise').classList.contains('active') || !queue.length || qi >= queue.length) return;
-  if (e.target.matches('input, textarea, select')) return;
-  if (e.code === 'Space'){ e.preventDefault(); if (!revealed) reveal(); }
-  else if (revealed && e.key === '1') grade('miss');
-  else if (revealed && e.key === '2') grade('ok');
-});
-
-/* ---------- Error log ---------- */
-function renderErrors(){
-  const list = words.filter(w => w.misses > 0).sort((a, b) => b.misses - a.misses);
-  const el = $('#errorTable');
-  if (!list.length){ el.innerHTML = '<p class="empty">No misses yet. Words land here when you mark them "Missed" in revision.</p>'; return; }
-  el.innerHTML = `<table><thead><tr><th>Word</th><th>Meaning</th><th>Missed</th><th>Last missed</th><th>Now</th><th>Confused with / why I missed it</th></tr></thead><tbody>
-    ${list.map(w => {
-      const lm = [...w.log].reverse().find(l => l.r === 'miss');
-      return `<tr data-id="${w.id}">
-        <td><b>${esc(w.word)}</b></td><td>${esc(w.meaning)}</td>
-        <td class="num">${w.misses}×</td><td>${lm ? fmtDate(lm.d) : '—'}</td>
-        <td><span class="dot ${w.status}" title="${w.status}"></span></td>
-        <td><input class="note" value="${esc(w.note)}" placeholder="e.g. mixed up with 'ingenuous'"></td></tr>`;
-    }).join('')}</tbody></table>`;
-}
-$('#errorTable').addEventListener('change', e => {
-  if (!e.target.classList.contains('note')) return;
-  words.find(x => x.id === e.target.closest('tr').dataset.id).note = e.target.value.trim();
-  persist();
-});
-$('#reviseErrors').onclick = () => { $('#revMode').value = 'errors'; showTab('revise'); startRevision(); };
-
-/* ---------- Stats ---------- */
-function renderStats(){
-  const t = today(), red = words.filter(w => w.status === 'red').length;
-  const addedToday = words.filter(w => w.added === t).length;
-  const reviewedToday = words.filter(w => w.log.some(l => l.d === t)).length;
-  const days = new Set(); words.forEach(w => { days.add(w.added); w.log.forEach(l => days.add(l.d)); });
-  let streak = 0, d = new Date();
-  if (!days.has(t)) d.setDate(d.getDate() - 1); // streak still alive if you haven't studied yet today
-  while (days.has(d.toLocaleDateString('en-CA'))){ streak++; d.setDate(d.getDate() - 1); }
-  $('#stats').innerHTML = `<span><b>${words.length}</b> words</span>
-    <span style="color:var(--red)"><b style="color:inherit">${red}</b> red</span>
-    <span style="color:var(--green)"><b style="color:inherit">${words.length - red}</b> green</span>
-    <span><b>${addedToday}</b> added today</span>
-    <span><b>${reviewedToday}</b> reviewed today</span>
-    <span>🔥 <b>${streak}</b>-day streak</span>`;
-}
-
-/* ---------- Backup ---------- */
-$('#exportBtn').onclick = () => {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(words, null, 2)], { type: 'application/json' }));
-  a.download = `gre-vocab-${today()}.json`; a.click();
-};
-$('#importFile').onchange = e => {
-  const file = e.target.files[0]; if (!file) return;
-  const r = new FileReader();
-  r.onload = () => {
-    try {
-      const data = JSON.parse(r.result);
-      if (!Array.isArray(data)) throw 0;
-      if (confirm(`Import ${data.length} words? This replaces your current list.`)){ words = data; save(); }
-    } catch { alert("That file doesn't look like a vocab backup."); }
-    e.target.value = '';
-  };
-  r.readAsText(file);
-};
-
-function render(){ renderStats(); renderList(); renderErrors(); }
-render();
-</script>
-</body>
-</html>
