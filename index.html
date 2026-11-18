@@ -1,0 +1,380 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2685.7">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  </style>
+</head>
+<body>
+<p class="p1">&lt;!DOCTYPE html&gt;</p>
+<p class="p1">&lt;html lang="en"&gt;</p>
+<p class="p1">&lt;head&gt;</p>
+<p class="p1">&lt;meta charset="UTF-8"&gt;</p>
+<p class="p1">&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</p>
+<p class="p1">&lt;title&gt;GRE Vocab Log&lt;/title&gt;</p>
+<p class="p1">&lt;style&gt;</p>
+<p class="p1">:root{--bg:#f6f4ef;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e4e1d8;--red:#d64545;--redbg:#fdecec;--green:#2e9e5b;--greenbg:#e8f6ee}</p>
+<p class="p1">*{box-sizing:border-box}</p>
+<p class="p1">body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}</p>
+<p class="p1">header,main{max-width:980px;margin:auto;padding:0 20px}</p>
+<p class="p1">header{padding-top:22px}</p>
+<p class="p1">.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}</p>
+<p class="p1">h1{margin:0;font-size:24px}</p>
+<p class="p1">.stats{display:flex;gap:18px;color:var(--muted);font-size:14px;flex-wrap:wrap;margin-top:8px}</p>
+<p class="p1">.stats b{color:var(--ink)}</p>
+<p class="p1">nav{display:flex;gap:4px;margin-top:16px;border-bottom:1px solid var(--line)}</p>
+<p class="p1">nav button{background:none;border:0;padding:10px 14px;font-size:15px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}</p>
+<p class="p1">nav button.active{color:var(--ink);border-color:var(--ink);font-weight:600}</p>
+<p class="p1">main{padding-top:20px;padding-bottom:60px}</p>
+<p class="p1">.panel{display:none}.panel.active{display:block}</p>
+<p class="p1">.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}</p>
+<p class="p1">form.add{display:grid;grid-template-columns:1fr 2fr;gap:10px}</p>
+<p class="p1">form.add .full{grid-column:1/-1}</p>
+<p class="p1">@media(max-width:640px){form.add{grid-template-columns:1fr}}</p>
+<p class="p1">input,textarea,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}</p>
+<p class="p1">textarea{resize:vertical;min-height:42px}</p>
+<p class="p1">.btn{padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;font:inherit;color:var(--ink)}</p>
+<p class="p1">.btn:hover{filter:brightness(.96)}</p>
+<p class="p1">.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}</p>
+<p class="p1">.btn.red{background:var(--red);color:#fff;border-color:var(--red)}</p>
+<p class="p1">.btn.green{background:var(--green);color:#fff;border-color:var(--green)}</p>
+<p class="p1">.btn.small{padding:6px 10px;font-size:13px}</p>
+<p class="p1">.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}</p>
+<p class="p1">.toolbar{display:flex;gap:8px;margin:18px 0 6px;flex-wrap:wrap}</p>
+<p class="p1">.toolbar input{flex:1;min-width:160px}</p>
+<p class="p1">.toolbar select{width:auto}</p>
+<p class="p1">.day{margin-top:18px}</p>
+<p class="p1">.day h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}</p>
+<p class="p1">.word{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-left:5px solid var(--red);border-radius:10px;padding:12px 14px;margin-bottom:8px}</p>
+<p class="p1">.word.green{border-left-color:var(--green)}</p>
+<p class="p1">.word .body{flex:1;min-width:0}</p>
+<p class="p1">.word .w{font-weight:700;font-size:17px}</p>
+<p class="p1">.word .m{margin-top:2px}</p>
+<p class="p1">.word .ex{color:var(--muted);font-style:italic;font-size:14px;margin-top:4px}</p>
+<p class="p1">.word .syn{font-size:13px;margin-top:4px}</p>
+<p class="p1">.word .meta{font-size:12px;color:var(--muted);margin-top:6px}</p>
+<p class="p1">.side{display:flex;flex-direction:column;align-items:flex-end;gap:6px}</p>
+<p class="p1">.pill{cursor:pointer;border:0;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:600}</p>
+<p class="p1">.pill.red{background:var(--redbg);color:var(--red)}</p>
+<p class="p1">.pill.green{background:var(--greenbg);color:var(--green)}</p>
+<p class="p1">.link{background:none;border:0;cursor:pointer;color:var(--muted);font-size:13px;padding:0}</p>
+<p class="p1">.link:hover{color:var(--ink);text-decoration:underline}</p>
+<p class="p1">.empty{color:var(--muted);text-align:center;padding:30px 0}</p>
+<p class="p1">.flash{text-align:center;padding:36px 20px;margin-top:16px}</p>
+<p class="p1">.prog{color:var(--muted);font-size:13px}</p>
+<p class="p1">.fw{font-size:38px;font-weight:700;margin:18px 0}</p>
+<p class="p1">#ans{margin:0 auto 20px;max-width:560px}</p>
+<p class="p1">#ans .m{font-size:18px}</p>
+<p class="p1">.actions{display:flex;gap:10px;justify-content:center}</p>
+<p class="p1">table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:12px}</p>
+<p class="p1">th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}</p>
+<p class="p1">th{background:#faf9f5;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}</p>
+<p class="p1">td.num{font-weight:700;color:var(--red)}</p>
+<p class="p1">.dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--red)}</p>
+<p class="p1">.dot.green{background:var(--green)}</p>
+<p class="p1">.table-wrap{overflow-x:auto}</p>
+<p class="p1">#importFile{display:none}</p>
+<p class="p1">&lt;/style&gt;</p>
+<p class="p1">&lt;/head&gt;</p>
+<p class="p1">&lt;body&gt;</p>
+<p class="p1">&lt;header&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;div class="top"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;h1&gt;📚 GRE Vocab Log&lt;/h1&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="row"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn small" id="exportBtn"&gt;Export backup&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;label class="btn small" for="importFile"&gt;Import&lt;/label&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;input type="file" id="importFile" accept=".json"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;div class="stats" id="stats"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;nav&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button class="active" data-tab="words"&gt;Words&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button data-tab="revise"&gt;Revise&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button data-tab="errors"&gt;Error Log&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/nav&gt;</p>
+<p class="p1">&lt;/header&gt;</p>
+<p class="p2"><br></p>
+<p class="p1">&lt;main&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- WORDS --&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;section class="panel active" id="words"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;form class="add card" id="addForm" autocomplete="off"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;input name="word" placeholder="Word (e.g. laconic)" required&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;input name="meaning" placeholder="Meaning"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;textarea class="full" name="example" placeholder="Example sentence (optional)"&gt;&lt;/textarea&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;input class="full" name="synonyms" placeholder="Synonyms / related words (optional)"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="full row"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="btn primary" id="submitBtn" type="submit"&gt;Add word&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="btn" id="cancelEdit" type="button" hidden&gt;Cancel edit&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/form&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="toolbar"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;input id="search" placeholder="Search words, meanings, synonyms…"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;select id="filter"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;option value="all"&gt;All&lt;/option&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;option value="red"&gt;🔴 Red only&lt;/option&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;option value="green"&gt;🟢 Green only&lt;/option&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;/select&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;select id="sort"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;option value="date"&gt;By day added&lt;/option&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;option value="az"&gt;A → Z&lt;/option&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;option value="misses"&gt;Most missed&lt;/option&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;/select&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div id="list"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/section&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- REVISE --&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;section class="panel" id="revise"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="card row"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;span&gt;Revise:&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;select id="revMode" style="width:auto"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;option value="due"&gt;Due (red + green not seen in 3+ days)&lt;/option&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;option value="red"&gt;Red words only&lt;/option&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;option value="today"&gt;Words added today&lt;/option&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;option value="errors"&gt;Error-log words&lt;/option&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;option value="all"&gt;All words&lt;/option&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;/select&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn primary" id="startRev"&gt;Start&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div id="revBox"&gt;&lt;p class="empty"&gt;Pick a set and hit Start. Shortcuts: Space = reveal, 1 = missed, 2 = knew it.&lt;/p&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/section&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- ERROR LOG --&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;section class="panel" id="errors"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="row" style="justify-content:space-between"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;p style="margin:0;color:var(--muted)"&gt;Every word you've missed in revision, worst first.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn small primary" id="reviseErrors"&gt;Revise these&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="table-wrap" id="errorTable"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/section&gt;</p>
+<p class="p1">&lt;/main&gt;</p>
+<p class="p2"><br></p>
+<p class="p1">&lt;script&gt;</p>
+<p class="p1">const KEY = 'greVocab.v1';</p>
+<p class="p1">const $ = s =&gt; document.querySelector(s);</p>
+<p class="p1">const esc = s =&gt; String(s ?? '').replace(/[&amp;&lt;&gt;"']/g, c =&gt; ({'&amp;':'&amp;amp;','&lt;':'&amp;lt;','&gt;':'&amp;gt;','"':'&amp;quot;',"'":'&amp;#39;'}[c]));</p>
+<p class="p1">const today = () =&gt; new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local</p>
+<p class="p1">const dayDiff = (a, b) =&gt; Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);</p>
+<p class="p2"><br></p>
+<p class="p1">let words = load();</p>
+<p class="p1">let editingId = null;</p>
+<p class="p2"><br></p>
+<p class="p1">function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } }</p>
+<p class="p1">function persist(){ try { localStorage.setItem(KEY, JSON.stringify(words)); } catch(e){ alert('Could not save — your browser may be blocking storage.'); } }</p>
+<p class="p1">function save(){ persist(); render(); }</p>
+<p class="p2"><br></p>
+<p class="p1">function fmtDate(d){</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const diff = dayDiff(today(), d);</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (diff === 0) return 'Today';</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (diff === 1) return 'Yesterday';</p>
+<p class="p1"><span class="Apple-converted-space">  </span>return new Date(d + 'T00:00').toLocaleDateString(undefined, {weekday:'short', day:'numeric', month:'short', year:'numeric'});</p>
+<p class="p1">}</p>
+<p class="p1">const lastReviewed = w =&gt; w.log.length ? w.log[w.log.length - 1].d : null;</p>
+<p class="p2"><br></p>
+<p class="p1">/* ---------- Tabs ---------- */</p>
+<p class="p1">function showTab(id){</p>
+<p class="p1"><span class="Apple-converted-space">  </span>document.querySelectorAll('nav button').forEach(b =&gt; b.classList.toggle('active', b.dataset.tab === id));</p>
+<p class="p1"><span class="Apple-converted-space">  </span>document.querySelectorAll('.panel').forEach(p =&gt; p.classList.toggle('active', p.id === id));</p>
+<p class="p1">}</p>
+<p class="p1">document.querySelectorAll('nav button').forEach(b =&gt; b.onclick = () =&gt; showTab(b.dataset.tab));</p>
+<p class="p2"><br></p>
+<p class="p1">/* ---------- Add / edit ---------- */</p>
+<p class="p1">$('#addForm').onsubmit = e =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">  </span>e.preventDefault();</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const f = e.target, word = f.word.value.trim();</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (!word) return;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const data = { word, meaning: f.meaning.value.trim(), example: f.example.value.trim(), synonyms: f.synonyms.value.trim() };</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (editingId) {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>Object.assign(words.find(w =&gt; w.id === editingId), data);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>stopEditing();</p>
+<p class="p1"><span class="Apple-converted-space">  </span>} else {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>if (words.some(w =&gt; w.word.toLowerCase() === word.toLowerCase()) &amp;&amp; !confirm(`"${word}" is already in your list. Add it again?`)) return;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>words.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...data,</p>
+<p class="p1"><span class="Apple-converted-space">      </span>status: 'red', added: today(), misses: 0, log: [], note: '' });</p>
+<p class="p1"><span class="Apple-converted-space">  </span>}</p>
+<p class="p1"><span class="Apple-converted-space">  </span>f.reset(); f.word.focus(); save();</p>
+<p class="p1">};</p>
+<p class="p1">function stopEditing(){ editingId = null; $('#submitBtn').textContent = 'Add word'; $('#cancelEdit').hidden = true; $('#addForm').reset(); }</p>
+<p class="p1">$('#cancelEdit').onclick = stopEditing;</p>
+<p class="p2"><br></p>
+<p class="p1">/* ---------- Word list ---------- */</p>
+<p class="p1">['search','filter','sort'].forEach(id =&gt; $('#' + id).addEventListener('input', renderList));</p>
+<p class="p2"><br></p>
+<p class="p1">function wordHTML(w){</p>
+<p class="p1"><span class="Apple-converted-space">  </span>return `&lt;div class="word ${w.status}" data-id="${w.id}"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="body"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="w"&gt;${esc(w.word)}&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>${w.meaning ? `&lt;div class="m"&gt;${esc(w.meaning)}&lt;/div&gt;` : ''}</p>
+<p class="p1"><span class="Apple-converted-space">      </span>${w.example ? `&lt;div class="ex"&gt;“${esc(w.example)}”&lt;/div&gt;` : ''}</p>
+<p class="p1"><span class="Apple-converted-space">      </span>${w.synonyms ? `&lt;div class="syn"&gt;&lt;b&gt;Syn:&lt;/b&gt; ${esc(w.synonyms)}&lt;/div&gt;` : ''}</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="meta"&gt;Added ${fmtDate(w.added)} · Reviewed ${w.log.length}× · Missed ${w.misses}×&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="side"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="pill ${w.status}" data-act="toggle" title="Click to flip status"&gt;${w.status === 'red' ? '● Red' : '● Green'}&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="row"&gt;&lt;button class="link" data-act="edit"&gt;Edit&lt;/button&gt;&lt;button class="link" data-act="del"&gt;Delete&lt;/button&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/div&gt;`;</p>
+<p class="p1">}</p>
+<p class="p2"><br></p>
+<p class="p1">function renderList(){</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const q = $('#search').value.toLowerCase().trim(), fs = $('#filter').value, sort = $('#sort').value;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>let list = words.filter(w =&gt; (fs === 'all' || w.status === fs) &amp;&amp;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>`${w.word} ${w.meaning} ${w.synonyms}`.toLowerCase().includes(q));</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const el = $('#list');</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (!list.length){ el.innerHTML = `&lt;p class="empty"&gt;${words.length ? 'No matches.' : 'No words yet — add your first one above.'}&lt;/p&gt;`; return; }</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (sort === 'az') list.sort((a, b) =&gt; a.word.localeCompare(b.word));</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (sort === 'misses') list.sort((a, b) =&gt; b.misses - a.misses);</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (sort === 'date'){</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const groups = {};</p>
+<p class="p1"><span class="Apple-converted-space">    </span>list.forEach(w =&gt; (groups[w.added] ||= []).push(w));</p>
+<p class="p1"><span class="Apple-converted-space">    </span>el.innerHTML = Object.keys(groups).sort().reverse().map(d =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const g = groups[d], reds = g.filter(w =&gt; w.status === 'red').length;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>return `&lt;div class="day"&gt;&lt;h3&gt;${fmtDate(d)} · ${g.length} word${g.length &gt; 1 ? 's' : ''} · ${reds} red&lt;/h3&gt;${g.map(wordHTML).join('')}&lt;/div&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}).join('');</p>
+<p class="p1"><span class="Apple-converted-space">  </span>} else el.innerHTML = list.map(wordHTML).join('');</p>
+<p class="p1">}</p>
+<p class="p2"><br></p>
+<p class="p1">$('#list').onclick = e =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const b = e.target.closest('[data-act]'); if (!b) return;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const w = words.find(x =&gt; x.id === b.closest('.word').dataset.id);</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const act = b.dataset.act;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (act === 'toggle'){ w.status = w.status === 'red' ? 'green' : 'red'; save(); }</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (act === 'del' &amp;&amp; confirm(`Delete "${w.word}"?`)){ words = words.filter(x =&gt; x !== w); save(); }</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (act === 'edit'){</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const f = $('#addForm');</p>
+<p class="p1"><span class="Apple-converted-space">    </span>f.word.value = w.word; f.meaning.value = w.meaning; f.example.value = w.example; f.synonyms.value = w.synonyms;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>editingId = w.id; $('#submitBtn').textContent = 'Save changes'; $('#cancelEdit').hidden = false;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>window.scrollTo({ top: 0, behavior: 'smooth' }); f.word.focus();</p>
+<p class="p1"><span class="Apple-converted-space">  </span>}</p>
+<p class="p1">};</p>
+<p class="p2"><br></p>
+<p class="p1">/* ---------- Revision ---------- */</p>
+<p class="p1">let queue = [], qi = 0, revealed = false, sess = { ok: 0, miss: 0 };</p>
+<p class="p2"><br></p>
+<p class="p1">function startRevision(){</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const mode = $('#revMode').value, t = today();</p>
+<p class="p1"><span class="Apple-converted-space">  </span>queue = words.filter(w =&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>mode === 'all' ||</p>
+<p class="p1"><span class="Apple-converted-space">    </span>(mode === 'red' &amp;&amp; w.status === 'red') ||</p>
+<p class="p1"><span class="Apple-converted-space">    </span>(mode === 'today' &amp;&amp; w.added === t) ||</p>
+<p class="p1"><span class="Apple-converted-space">    </span>(mode === 'errors' &amp;&amp; w.misses &gt; 0) ||</p>
+<p class="p1"><span class="Apple-converted-space">    </span>(mode === 'due' &amp;&amp; (w.status === 'red' || !lastReviewed(w) || dayDiff(t, lastReviewed(w)) &gt;= 3)));</p>
+<p class="p1"><span class="Apple-converted-space">  </span>for (let i = queue.length - 1; i &gt; 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [queue[i], queue[j]] = [queue[j], queue[i]]; }</p>
+<p class="p1"><span class="Apple-converted-space">  </span>qi = 0; sess = { ok: 0, miss: 0 }; showCard();</p>
+<p class="p1">}</p>
+<p class="p1">$('#startRev').onclick = startRevision;</p>
+<p class="p2"><br></p>
+<p class="p1">function showCard(){</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const box = $('#revBox');</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (!queue.length){ box.innerHTML = '&lt;p class="empty"&gt;Nothing in this set right now 🎉&lt;/p&gt;'; return; }</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (qi &gt;= queue.length){</p>
+<p class="p1"><span class="Apple-converted-space">    </span>box.innerHTML = `&lt;div class="card flash"&gt;&lt;div class="fw"&gt;Done!&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;p&gt;✅ ${sess.ok} knew · ❌ ${sess.miss} missed&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn primary" id="again"&gt;Go again&lt;/button&gt;&lt;/div&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>$('#again').onclick = startRevision; return;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>}</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const w = queue[qi]; revealed = false;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>box.innerHTML = `&lt;div class="card flash"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="prog"&gt;${qi + 1} / ${queue.length} · currently &lt;span class="pill ${w.status}"&gt;${w.status}&lt;/span&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="fw"&gt;${esc(w.word)}&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div id="ans" hidden&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="m"&gt;${esc(w.meaning) || '&lt;i&gt;No meaning added&lt;/i&gt;'}&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>${w.example ? `&lt;p class="ex" style="color:var(--muted);font-style:italic"&gt;“${esc(w.example)}”&lt;/p&gt;` : ''}</p>
+<p class="p1"><span class="Apple-converted-space">      </span>${w.synonyms ? `&lt;p&gt;&lt;b&gt;Syn:&lt;/b&gt; ${esc(w.synonyms)}&lt;/p&gt;` : ''}</p>
+<p class="p1"><span class="Apple-converted-space">      </span>${w.note ? `&lt;p style="color:var(--red)"&gt;&lt;b&gt;Error note:&lt;/b&gt; ${esc(w.note)}&lt;/p&gt;` : ''}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="actions" id="revealRow"&gt;&lt;button class="btn primary" id="revealBtn"&gt;Show meaning (Space)&lt;/button&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="actions" id="gradeRow" hidden&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn red" data-g="miss"&gt;✗ Missed (1)&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn green" data-g="ok"&gt;✓ Knew it (2)&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;&lt;/div&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>$('#revealBtn').onclick = reveal;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>box.querySelectorAll('[data-g]').forEach(b =&gt; b.onclick = () =&gt; grade(b.dataset.g));</p>
+<p class="p1">}</p>
+<p class="p1">function reveal(){ revealed = true; $('#ans').hidden = false; $('#revealRow').hidden = true; $('#gradeRow').hidden = false; }</p>
+<p class="p1">function grade(r){</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const w = queue[qi];</p>
+<p class="p1"><span class="Apple-converted-space">  </span>w.log.push({ d: today(), r });</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (r === 'miss'){ w.misses++; w.status = 'red'; sess.miss++; } else { w.status = 'green'; sess.ok++; }</p>
+<p class="p1"><span class="Apple-converted-space">  </span>qi++; save(); showCard();</p>
+<p class="p1">}</p>
+<p class="p1">document.addEventListener('keydown', e =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (!$('#revise').classList.contains('active') || !queue.length || qi &gt;= queue.length) return;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (e.target.matches('input, textarea, select')) return;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (e.code === 'Space'){ e.preventDefault(); if (!revealed) reveal(); }</p>
+<p class="p1"><span class="Apple-converted-space">  </span>else if (revealed &amp;&amp; e.key === '1') grade('miss');</p>
+<p class="p1"><span class="Apple-converted-space">  </span>else if (revealed &amp;&amp; e.key === '2') grade('ok');</p>
+<p class="p1">});</p>
+<p class="p2"><br></p>
+<p class="p1">/* ---------- Error log ---------- */</p>
+<p class="p1">function renderErrors(){</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const list = words.filter(w =&gt; w.misses &gt; 0).sort((a, b) =&gt; b.misses - a.misses);</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const el = $('#errorTable');</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (!list.length){ el.innerHTML = '&lt;p class="empty"&gt;No misses yet. Words land here when you mark them "Missed" in revision.&lt;/p&gt;'; return; }</p>
+<p class="p1"><span class="Apple-converted-space">  </span>el.innerHTML = `&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Word&lt;/th&gt;&lt;th&gt;Meaning&lt;/th&gt;&lt;th&gt;Missed&lt;/th&gt;&lt;th&gt;Last missed&lt;/th&gt;&lt;th&gt;Now&lt;/th&gt;&lt;th&gt;Confused with / why I missed it&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>${list.map(w =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const lm = [...w.log].reverse().find(l =&gt; l.r === 'miss');</p>
+<p class="p1"><span class="Apple-converted-space">      </span>return `&lt;tr data-id="${w.id}"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;td&gt;&lt;b&gt;${esc(w.word)}&lt;/b&gt;&lt;/td&gt;&lt;td&gt;${esc(w.meaning)}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;td class="num"&gt;${w.misses}×&lt;/td&gt;&lt;td&gt;${lm ? fmtDate(lm.d) : '—'}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;td&gt;&lt;span class="dot ${w.status}" title="${w.status}"&gt;&lt;/span&gt;&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;td&gt;&lt;input class="note" value="${esc(w.note)}" placeholder="e.g. mixed up with 'ingenuous'"&gt;&lt;/td&gt;&lt;/tr&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}).join('')}&lt;/tbody&gt;&lt;/table&gt;`;</p>
+<p class="p1">}</p>
+<p class="p1">$('#errorTable').addEventListener('change', e =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (!e.target.classList.contains('note')) return;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>words.find(x =&gt; x.id === e.target.closest('tr').dataset.id).note = e.target.value.trim();</p>
+<p class="p1"><span class="Apple-converted-space">  </span>persist();</p>
+<p class="p1">});</p>
+<p class="p1">$('#reviseErrors').onclick = () =&gt; { $('#revMode').value = 'errors'; showTab('revise'); startRevision(); };</p>
+<p class="p2"><br></p>
+<p class="p1">/* ---------- Stats ---------- */</p>
+<p class="p1">function renderStats(){</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const t = today(), red = words.filter(w =&gt; w.status === 'red').length;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const addedToday = words.filter(w =&gt; w.added === t).length;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const reviewedToday = words.filter(w =&gt; w.log.some(l =&gt; l.d === t)).length;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const days = new Set(); words.forEach(w =&gt; { days.add(w.added); w.log.forEach(l =&gt; days.add(l.d)); });</p>
+<p class="p1"><span class="Apple-converted-space">  </span>let streak = 0, d = new Date();</p>
+<p class="p1"><span class="Apple-converted-space">  </span>if (!days.has(t)) d.setDate(d.getDate() - 1); // streak still alive if you haven't studied yet today</p>
+<p class="p1"><span class="Apple-converted-space">  </span>while (days.has(d.toLocaleDateString('en-CA'))){ streak++; d.setDate(d.getDate() - 1); }</p>
+<p class="p1"><span class="Apple-converted-space">  </span>$('#stats').innerHTML = `&lt;span&gt;&lt;b&gt;${words.length}&lt;/b&gt; words&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;span style="color:var(--red)"&gt;&lt;b style="color:inherit"&gt;${red}&lt;/b&gt; red&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;span style="color:var(--green)"&gt;&lt;b style="color:inherit"&gt;${words.length - red}&lt;/b&gt; green&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;span&gt;&lt;b&gt;${addedToday}&lt;/b&gt; added today&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;span&gt;&lt;b&gt;${reviewedToday}&lt;/b&gt; reviewed today&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;span&gt;🔥 &lt;b&gt;${streak}&lt;/b&gt;-day streak&lt;/span&gt;`;</p>
+<p class="p1">}</p>
+<p class="p2"><br></p>
+<p class="p1">/* ---------- Backup ---------- */</p>
+<p class="p1">$('#exportBtn').onclick = () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const a = document.createElement('a');</p>
+<p class="p1"><span class="Apple-converted-space">  </span>a.href = URL.createObjectURL(new Blob([JSON.stringify(words, null, 2)], { type: 'application/json' }));</p>
+<p class="p1"><span class="Apple-converted-space">  </span>a.download = `gre-vocab-${today()}.json`; a.click();</p>
+<p class="p1">};</p>
+<p class="p1">$('#importFile').onchange = e =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const file = e.target.files[0]; if (!file) return;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const r = new FileReader();</p>
+<p class="p1"><span class="Apple-converted-space">  </span>r.onload = () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>try {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const data = JSON.parse(r.result);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!Array.isArray(data)) throw 0;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (confirm(`Import ${data.length} words? This replaces your current list.`)){ words = data; save(); }</p>
+<p class="p1"><span class="Apple-converted-space">    </span>} catch { alert("That file doesn't look like a vocab backup."); }</p>
+<p class="p1"><span class="Apple-converted-space">    </span>e.target.value = '';</p>
+<p class="p1"><span class="Apple-converted-space">  </span>};</p>
+<p class="p1"><span class="Apple-converted-space">  </span>r.readAsText(file);</p>
+<p class="p1">};</p>
+<p class="p2"><br></p>
+<p class="p1">function render(){ renderStats(); renderList(); renderErrors(); }</p>
+<p class="p1">render();</p>
+<p class="p1">&lt;/script&gt;</p>
+<p class="p1">&lt;/body&gt;</p>
+<p class="p1">&lt;/html&gt;</p>
+</body>
+</html>
