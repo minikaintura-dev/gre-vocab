@@ -40,8 +40,9 @@ select.btn{width:auto}
 .wordrow{display:flex;gap:8px}
 #lookupMsg{font-size:13px;color:var(--muted);min-height:16px}
 #viewBanner{background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:10px;padding:10px 14px;margin-top:12px;font-size:14px}
-#sharePanel,#aiPanel{margin-top:12px}
-.readonly #addForm,.readonly .side .row,.readonly #importLabel,.readonly #shareBtn,.readonly #sharePanel,.readonly #aiBtn,.readonly #aiPanel{display:none!important}
+#sharePanel,#aiPanel,#bulkPanel{margin-top:12px}
+#bulkText{min-height:180px}
+.readonly #addForm,.readonly .side .row,.readonly #importLabel,.readonly #shareBtn,.readonly #sharePanel,.readonly #aiBtn,.readonly #aiPanel,.readonly #bulkToggleRow,.readonly #bulkPanel{display:none!important}
 .readonly .pill{cursor:default}
 .toolbar{display:flex;gap:8px;margin:18px 0 6px;flex-wrap:wrap}
 .toolbar input{flex:1;min-width:160px}
@@ -177,6 +178,26 @@ h3.sec{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--
         <button class="btn" id="cancelEdit" type="button" hidden>Cancel edit</button>
       </div>
     </form>
+
+    <div class="row" id="bulkToggleRow" style="margin-top:10px">
+      <button class="btn small" type="button" id="bulkBtn">📋 Bulk add a list of words</button>
+    </div>
+    <div class="card" id="bulkPanel" hidden>
+      <b>📋 Bulk add words</b>
+      <p class="sync" style="margin:4px 0 10px">Paste your list — one word per line (or separated by commas). Lines like <i>word - meaning</i> or <i>word: meaning</i> also work, and the meaning is kept. Numbers and bullets are ignored. Words already in your log are skipped automatically.</p>
+      <textarea id="bulkText" placeholder="laconic&#10;obdurate - stubbornly refusing to change&#10;prodigal: wastefully extravagant"></textarea>
+      <p class="sync" id="bulkPreview" style="margin:8px 0"></p>
+      <label class="sync" style="display:flex;gap:8px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="bulkFill" checked style="width:auto">
+        <span id="bulkFillLabel">Fill in missing meanings, synonyms &amp; sentences</span>
+      </label>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" type="button" id="bulkAdd" disabled>Add words</button>
+        <button class="btn" type="button" id="bulkStop" hidden>Stop filling</button>
+        <span class="sync" id="bulkProgress"></span>
+      </div>
+    </div>
+
     <div class="toolbar">
       <input id="search" placeholder="Search words, meanings, synonyms…">
       <select id="filter">
@@ -254,6 +275,7 @@ const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
 const dayDiff = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);
 const fmtTime = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const sortWords = list => list.sort((a, b) =>
   (b.added || '').localeCompare(a.added || '') || (b.ts || 0) - (a.ts || 0) || String(b.id).localeCompare(String(a.id)));
 
@@ -262,6 +284,7 @@ let words = myWords;               // what's on screen (yours, or someone else's
 let viewing = null;                // set when viewing someone else's words (read-only)
 let editingId = null;
 let aiKey = (() => { try { return localStorage.getItem(AIKEY) || ''; } catch (e) { return ''; } })();
+let rewriting = false, filling = false;
 
 function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } }
 function persist(){ try { localStorage.setItem(KEY, JSON.stringify(myWords)); } catch(e){} }
@@ -419,7 +442,7 @@ function startViewing(o){
   stopEditing();
   viewing = o; words = []; resetRevision();
   document.body.classList.add('readonly');
-  $('#sharePanel').hidden = true; $('#aiPanel').hidden = true;
+  $('#sharePanel').hidden = true; $('#aiPanel').hidden = true; $('#bulkPanel').hidden = true;
   const banner = $('#viewBanner');
   banner.hidden = false;
   banner.textContent = '👀 Viewing ' + (o.ownerName || o.ownerEmail) + "'s words (read-only). Use the menu at the top to switch back to your own.";
@@ -507,6 +530,7 @@ function updateAiUI(){
     : 'No key yet — Look up uses the regular dictionary (general meanings).';
   $('#aiRewrite').disabled = !aiKey || rewriting;
   $('#addForm').meaning.placeholder = aiKey ? 'Meaning (✨ GRE-style auto-fill)' : 'Meaning (auto-fills when you type a word)';
+  updateBulkPreview();
 }
 
 async function aiLookup(word){
@@ -538,7 +562,7 @@ If "${word}" is not a real English word, return an empty string for "meaning".`;
         }
       })
     });
-    if (res.status === 404) { lastErr = new Error('model ' + model + ' not found'); continue; }
+    if ([404, 429, 500, 502, 503, 504].includes(res.status)) { lastErr = new Error(res.status === 404 ? 'model not found' : 'Google AI is busy right now — try again in a minute'); continue; }
     let data = {};
     try { data = await res.json(); } catch (e) {}
     if (!res.ok) {
@@ -583,7 +607,6 @@ $('#aiRemove').onclick = () => {
   if (confirm('Remove your Gemini key? Look up will go back to the regular dictionary.')) setAiKey('', true);
 };
 
-let rewriting = false;
 $('#aiStop').onclick = () => { rewriting = false; $('#aiProgress').textContent = 'Stopping after this word…'; };
 $('#aiRewrite').onclick = async () => {
   if (!aiKey || viewing || rewriting) return;
@@ -602,8 +625,8 @@ $('#aiRewrite').onclick = async () => {
       if (w && r.meaning) { Object.assign(w, r); commit([w]); } else failed++;
     } catch (err) {
       failed++;
-      if (/quota|exhaust|429|rate/i.test(err.message)) {
-        $('#aiProgress').textContent = '⏳ Hit the free per-minute limit — waiting a minute…';
+      if (/quota|exhaust|429|rate|busy/i.test(err.message)) {
+        $('#aiProgress').textContent = '⏳ Google AI is busy or at its free limit — waiting a minute…';
         await sleep(60000);
       }
     }
@@ -701,6 +724,113 @@ $('#addForm').onsubmit = async e => {
 };
 function stopEditing(){ editingId = null; $('#submitBtn').textContent = 'Add word'; $('#cancelEdit').hidden = true; $('#addForm').reset(); $('#lookupMsg').textContent = ''; }
 $('#cancelEdit').onclick = stopEditing;
+
+/* ---------- Bulk add ---------- */
+function parseBulk(text){
+  let lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  // A single line of comma-separated words
+  if (lines.length === 1 && lines[0].includes(',') && !/[:\t]|\s[-–—]\s/.test(lines[0])) {
+    lines = lines[0].split(',').map(s => s.trim()).filter(Boolean);
+  }
+  return lines.map(line => {
+    line = line.replace(/^(\d+\s*[.)\-:]\s*|[-•*·]\s+)/, ''); // strip numbering / bullets
+    const m = line.match(/^(.+?)\s*(?:\t|\s[-–—]\s|:)\s*(.+)$/);
+    let word = (m ? m[1] : line).replace(/\s*\((?:n|v|adj|adv|noun|verb|adjective|adverb)\.?\)\s*$/i, '').trim();
+    const meaning = m ? m[2].trim() : '';
+    word = word.replace(/^["'“”]+|["'“”.,;]+$/g, '').trim();
+    return { word, meaning };
+  }).filter(x => x.word && x.word.length <= 40 && x.word.split(/\s+/).length <= 4);
+}
+
+function bulkPlan(){
+  const items = parseBulk($('#bulkText').value);
+  const have = new Set(myWords.map(w => w.word.toLowerCase()));
+  const seen = new Set(), add = [], dup = [];
+  items.forEach(it => {
+    const k = it.word.toLowerCase();
+    if (have.has(k) || seen.has(k)) { dup.push(it.word); return; }
+    seen.add(k); add.push(it);
+  });
+  return { items, add, dup };
+}
+
+function updateBulkPreview(){
+  const { items, add, dup } = bulkPlan();
+  $('#bulkPreview').innerHTML = items.length
+    ? `Found <b>${items.length}</b> words · <b style="color:var(--green)">${add.length} new</b> will be added · <b>${dup.length}</b> already in your log (skipped)${dup.length ? ': ' + esc(dup.slice(0, 40).join(', ')) + (dup.length > 40 ? '…' : '') : ''}`
+    : '';
+  $('#bulkAdd').disabled = !add.length || filling;
+  $('#bulkAdd').textContent = add.length ? `Add ${add.length} word${add.length === 1 ? '' : 's'}` : 'Add words';
+  $('#bulkFillLabel').innerHTML = aiKey
+    ? 'Fill in missing meanings, synonyms &amp; sentences with ✨ GRE AI (about 7 sec per word — keep this tab open)'
+    : 'Fill in missing meanings from the dictionary (add a key under ✨ GRE AI for GRE-style entries)';
+}
+
+$('#bulkBtn').onclick = () => { $('#bulkPanel').hidden = !$('#bulkPanel').hidden; updateBulkPreview(); };
+$('#bulkText').addEventListener('input', updateBulkPreview);
+$('#bulkStop').onclick = () => { filling = false; $('#bulkProgress').textContent = 'Stopping after this word…'; };
+
+$('#bulkAdd').onclick = async () => {
+  if (viewing || filling) return;
+  const { add, dup } = bulkPlan();
+  if (!add.length) return;
+  const base = Date.now(), d = today();
+  const created = add.map((it, i) => ({
+    id: (base - i).toString(36) + Math.random().toString(36).slice(2, 6),
+    word: cap(it.word), meaning: it.meaning, example: '', synonyms: '',
+    status: 'red', added: d, ts: base - i, misses: 0, log: [], note: ''
+  }));
+  setMine(sortWords([...created, ...myWords]));
+  commit(created);
+  $('#bulkText').value = '';
+  $('#bulkProgress').textContent = `✓ Added ${created.length} word${created.length === 1 ? '' : 's'}${dup.length ? `, skipped ${dup.length} already in your log` : ''}.`;
+  updateBulkPreview();
+  if ($('#bulkFill').checked) await fillWords(created.map(w => w.id));
+};
+
+async function fillWords(ids){
+  filling = true; $('#bulkStop').hidden = false; updateBulkPreview();
+  let done = 0, ai = 0, dict = 0, none = 0;
+  for (const id of ids) {
+    if (!filling) break;
+    const w0 = myWords.find(x => x.id === id);
+    if (!w0) { done++; continue; }
+    if (w0.meaning && w0.example && w0.synonyms) { done++; continue; }
+    $('#bulkProgress').textContent = `${aiKey ? '✨' : '📖'} Filling ${done + 1} / ${ids.length}: ${w0.word}…`;
+    let r = null, usedAI = false;
+    if (aiKey) {
+      try { r = await aiLookup(w0.word); }
+      catch (err) {
+        if (/quota|exhaust|rate|limit|busy/i.test(err.message)) {
+          $('#bulkProgress').textContent = '⏳ Google AI is busy or at its free limit — waiting a minute…';
+          await sleep(60000);
+          try { r = await aiLookup(w0.word); } catch (e2) { r = null; }
+        }
+      }
+      usedAI = !!(r && r.meaning);
+      if (!usedAI) r = null;
+    }
+    if (!r) { try { r = await dictLookup(w0.word); } catch (e) { r = null; } }
+    const w = myWords.find(x => x.id === id);
+    if (w && r) {
+      if (!w.meaning && r.meaning) w.meaning = r.meaning;
+      if (!w.example && r.example) w.example = r.example;
+      if (!w.synonyms && r.synonyms) w.synonyms = r.synonyms;
+      commit([w]);
+      if (usedAI) ai++; else dict++;
+    } else none++;
+    done++;
+    if (filling) await sleep(aiKey ? 7000 : 400);
+  }
+  const stopped = !filling;
+  filling = false; $('#bulkStop').hidden = true;
+  const parts = [];
+  if (ai) parts.push(ai + ' filled with ✨ GRE AI');
+  if (dict) parts.push(dict + ' from the dictionary');
+  if (none) parts.push(none + ' not found (add those meanings with Edit)');
+  $('#bulkProgress').textContent = (stopped && done < ids.length ? '⏹ Stopped. ' : '✓ Done! ') + (parts.join(' · ') || 'Nothing needed filling.');
+  updateBulkPreview();
+}
 
 /* ---------- Word list ---------- */
 ['search','filter','sort'].forEach(id => $('#' + id).addEventListener('input', renderList));
@@ -1036,7 +1166,7 @@ $('#importFile').onchange = e => {
   r.readAsText(file);
 };
 
-function render(){ renderStats(); renderList(); renderErrors(); renderAnalytics(); }
+function render(){ renderStats(); renderList(); renderErrors(); renderAnalytics(); updateBulkPreview(); }
 render();
 updateAiUI();
 initSync();
